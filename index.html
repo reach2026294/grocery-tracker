@@ -65,6 +65,12 @@ input,select{font-family:inherit;}
 .btn-amber{background:#f59e0b;}
 .btn-sm{padding:5px 12px;font-size:12px;background:transparent;border:2px solid #e2e8f0;color:#64748b;border-radius:6px;}
 .btn-sm.red{color:#ef4444;border-color:#fecaca;}
+.stock-ctrl{display:inline-flex;align-items:center;gap:0;}
+.stock-ctrl .sq{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:2px solid #e2e8f0;background:#fff;font-size:16px;font-weight:700;color:#64748b;cursor:pointer;transition:all 0.15s;}
+.stock-ctrl .sq:hover{background:#6366f1;color:#fff;border-color:#6366f1;}
+.stock-ctrl .sq.minus{border-radius:6px 0 0 6px;}
+.stock-ctrl .sq.plus{border-radius:0 6px 6px 0;}
+.stock-ctrl .sq-val{min-width:38px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-top:2px solid #e2e8f0;border-bottom:2px solid #e2e8f0;font-weight:700;font-size:13px;background:#f8fafc;}
 .input{width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;transition:border 0.2s;}
 .input:focus{border-color:#6366f1;}
 .field{margin-bottom:14px;}
@@ -661,7 +667,13 @@ function renderInventory(){
               <td>${badgeHTML(item.category, CATEGORIES.indexOf(item.category))}</td>
               <td>${item.unit}</td>
               <td>${fc(item.costPerUnit)}</td>
-              <td style="font-weight:700">${item.stock}</td>
+              <td>
+                <div class="stock-ctrl">
+                  <button class="sq minus" onclick="quickStock('${item.id}',-1)">−</button>
+                  <span class="sq-val">${item.stock}</span>
+                  <button class="sq plus" onclick="quickStock('${item.id}',1)">+</button>
+                </div>
+              </td>
               <td>${item.reorderLevel}</td>
               <td>${item.supplier||"\u2014"}</td>
               <td>${statusBadge(item)}</td>
@@ -916,6 +928,13 @@ function addItem(){
   if(!name||!cost){alert("Please enter item name and cost.");return;}
   items.push({id:gid(),name,category:document.getElementById("itemCat").value,unit:document.getElementById("itemUnit").value,costPerUnit:cost,stock:Number(document.getElementById("itemStock").value)||0,reorderLevel:Number(document.getElementById("itemReorder").value)||0,supplier:document.getElementById("itemSupplier").value.trim()});
   saveData(); closeModal(); render();
+}
+
+function quickStock(id, delta){
+  const item=items.find(i=>i.id===id);
+  if(!item)return;
+  item.stock=Math.max(0, item.stock+delta);
+  saveData(); render();
 }
 
 function openEditItem(id){
