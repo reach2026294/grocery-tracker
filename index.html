@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office Grocery Tracker</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
+button{cursor:pointer;font-family:inherit;}
+input,select{font-family:inherit;}
+.header{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:22px;font-weight:700;}
+.header p{margin-top:4px;opacity:0.8;font-size:14px;}
+.header input[type=month]{padding:8px 12px;border:2px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:#fff;outline:none;}
+.nav{display:flex;gap:4px;background:#fff;margin:0 20px;border-radius:0 0 12px 12px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.nav button{padding:10px 20px;border:none;border-radius:8px;font-weight:600;font-size:14px;background:transparent;color:#64748b;transition:all 0.2s;}
+.nav button.active{background:#6366f1;color:#fff;}
+.content{padding:20px 20px 30px;}
+.grid{display:grid;gap:16px;}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+.grid-2{grid-template-columns:1fr 1fr;}
+.grid-3{grid-template-columns:1fr 1fr 1fr;}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.stat{border-left:4px solid;padding:18px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.stat .label{font-size:13px;color:#64748b;font-weight:600;}
+.stat .value{font-size:28px;font-weight:700;margin-top:4px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-weight:600;font-size:14px;color:#fff;background:#6366f1;}
+.btn-green{background:#10b981;}
+.btn-purple{background:#8b5cf6;}
+.btn-amber{background:#f59e0b;}
+.btn-sm{padding:5px 12px;font-size:12px;background:transparent;border:2px solid #e2e8f0;color:#64748b;border-radius:6px;}
+.btn-sm.red{color:#ef4444;border-color:#fecaca;}
+.input{width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;transition:border 0.2s;}
+.input:focus{border-color:#6366f1;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:13px;font-weight:600;color:#64748b;margin-bottom:6px;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{text-align:left;padding:12px 14px;border-bottom:2px solid #e2e8f0;color:#64748b;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;}
+td{padding:12px 14px;border-bottom:1px solid #f1f5f9;}
+.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.bar-container{display:flex;align-items:end;gap:6px;height:200px;padding:10px 0;}
+.bar-wrapper{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.bar{width:100%;border-radius:4px 4px 0 0;min-height:2px;transition:height 0.3s;position:relative;}
+.bar:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;white-space:nowrap;z-index:10;}
+.bar-label{font-size:11px;color:#94a3b8;text-align:center;writing-mode:vertical-rl;transform:rotate(180deg);max-height:60px;overflow:hidden;}
+.pie-legend{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.pie-legend-item{display:flex;align-items:center;gap:8px;font-size:13px;}
+.pie-legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.alert-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;margin-bottom:8px;}
+.export-card{border:2px solid #e2e8f0;border-radius:12px;padding:24px;text-align:center;}
+.export-card .icon{font-size:36px;margin-bottom:12px;}
+.export-card h4{margin-bottom:8px;}
+.export-card p{font-size:13px;color:#64748b;margin-bottom:16px;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.modal{background:#fff;border-radius:16px;padding:28px;min-width:380px;max-width:520px;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.modal-header h3{font-size:18px;}
+.modal-close{background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;}
+.flex-row{display:flex;gap:10px;align-items:center;}
+.empty{color:#94a3b8;text-align:center;padding:40px;font-size:14px;}
+.success-msg{background:#f0fdf4;color:#10b981;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-weight:600;font-size:14px;}
+.error-msg{background:#fef2f2;color:#ef4444;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-weight:600;font-size:14px;}
+.cost-preview{background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;}
+.tfoot-total{background:#f8fafc;font-weight:700;}
+.tfoot-total .cost{color:#6366f1;}
+.pie-visual{display:flex;gap:20px;align-items:center;margin-top:12px;}
+.pie-bars{display:flex;gap:3px;align-items:end;height:140px;}
+.pie-bar{width:28px;border-radius:4px 4px 0 0;transition:height 0.3s;position:relative;}
+.pie-bar:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:10;}
+.top-item-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.top-item-bar{height:22px;border-radius:4px;transition:width 0.3s;}
+.top-item-label{font-size:13px;min-width:100px;text-align:right;font-weight:600;}
+.top-item-value{font-size:12px;color:#64748b;white-space:nowrap;}
+@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2,.grid-3{grid-template-columns:1fr;}}
+@media(max-width:600px){.grid-4{grid-template-columns:1fr;}.nav{flex-wrap:wrap;}.header{flex-direction:column;align-items:flex-start;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Office Grocery Tracker</h1>
+    <p>Track daily usage, monitor stock, control costs</p>
+  </div>
+  <div class="flex-row">
+    <label style="font-size:13px;opacity:0.8">Month:</label>
+    <input type="month" id="monthPicker">
+  </div>
+</div>
+
+<div class="nav" id="nav">
+  <button class="active" data-tab="dashboard">Dashboard</button>
+  <button data-tab="usage">Usage Log</button>
+  <button data-tab="inventory">Inventory</button>
+  <button data-tab="export">Export & Backup</button>
+</div>
+
+<div class="content" id="content"></div>
+
+<!-- Modals -->
+<div class="overlay" id="modalOverlay" style="display:none" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="modalTitle"></h3>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// =================== DATA ===================
+const CATEGORIES = ["Beverages","Snacks","Kitchen Supplies","Cleaning Items","Disposables","Fruits & Vegetables","Dairy","Other"];
+const UNITS = ["pcs","kg","g","liters","ml","packets","bottles","boxes","dozen","rolls"];
+const COLORS = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#ec4899","#14b8a6","#f97316"];
+
+let items = [
+  {id:gid(),name:"Tea Bags",category:"Beverages",unit:"boxes",costPerUnit:150,stock:10,reorderLevel:3,supplier:"BigBasket"},
+  {id:gid(),name:"Coffee Powder",category:"Beverages",unit:"packets",costPerUnit:250,stock:5,reorderLevel:2,supplier:"BigBasket"},
+  {id:gid(),name:"Milk",category:"Dairy",unit:"liters",costPerUnit:60,stock:20,reorderLevel:5,supplier:"Local Dairy"},
+  {id:gid(),name:"Sugar",category:"Kitchen Supplies",unit:"kg",costPerUnit:45,stock:8,reorderLevel:2,supplier:"BigBasket"},
+  {id:gid(),name:"Paper Cups",category:"Disposables",unit:"packets",costPerUnit:80,stock:15,reorderLevel:5,supplier:"Amazon"},
+  {id:gid(),name:"Biscuits",category:"Snacks",unit:"packets",costPerUnit:30,stock:25,reorderLevel:10,supplier:"BigBasket"},
+  {id:gid(),name:"Hand Wash",category:"Cleaning Items",unit:"bottles",costPerUnit:120,stock:6,reorderLevel:2,supplier:"Amazon"},
+  {id:gid(),name:"Napkins",category:"Disposables",unit:"packets",costPerUnit:40,stock:12,reorderLevel:4,supplier:"Local Store"},
+];
+
+let entries = [];
+let activeTab = "dashboard";
+let selectedMonth = new Date().toISOString().slice(0,7);
+
+function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function fc(n){return "\u20B9"+Number(n).toLocaleString("en-IN");}
+
+// Save / Load from localStorage
+function saveData(){
+  try{
+    localStorage.setItem("gt_items",JSON.stringify(items));
+    localStorage.setItem("gt_entries",JSON.stringify(entries));
+  }catch(e){}
+}
+function loadData(){
+  try{
+    const i=localStorage.getItem("gt_items");
+    const e=localStorage.getItem("gt_entries");
+    if(i) items=JSON.parse(i);
+    if(e) entries=JSON.parse(e);
+  }catch(e){}
+}
+loadData();
+
+// =================== INIT ===================
+const monthPicker = document.getElementById("monthPicker");
+monthPicker.value = selectedMonth;
+monthPicker.addEventListener("change", function(){
+  selectedMonth = this.value;
+  render();
+});
+
+document.getElementById("nav").addEventListener("click", function(e){
+  if(e.target.tagName==="BUTTON"){
+    activeTab = e.target.dataset.tab;
+    document.querySelectorAll("#nav button").forEach(b=>b.classList.remove("active"));
+    e.target.classList.add("active");
+    render();
+  }
+});
+
+// =================== HELPERS ===================
+function getMonthEntries(){return entries.filter(e=>e.date.startsWith(selectedMonth));}
+function getLowStock(){return items.filter(i=>i.stock<=i.reorderLevel);}
+
+function selectOptions(arr, selectedVal){
+  return arr.map(a=>`<option value="${a}" ${a===selectedVal?"selected":""}>${a}</option>`).join("");
+}
+
+function itemSelectOptions(selId){
+  return `<option value="">— Select item —</option>`+items.map(i=>`<option value="${i.id}" ${i.id===selId?"selected":""}>${i.name} (${i.stock} ${i.unit} in stock)</option>`).join("");
+}
+
+function badgeHTML(text, colorIdx){
+  const c = COLORS[colorIdx % COLORS.length];
+  return `<span class="badge" style="background:${c}18;color:${c}">${text}</span>`;
+}
+
+function statusBadge(item){
+  return item.stock<=item.reorderLevel
+    ? `<span class="badge" style="background:#ef444418;color:#ef4444">Low</span>`
+    : `<span class="badge" style="background:#10b98118;color:#10b981">OK</span>`;
+}
+
+// =================== RENDER ===================
+function render(){
+  const c = document.getElementById("content");
+  if(activeTab==="dashboard") c.innerHTML = renderDashboard();
+  else if(activeTab==="usage") c.innerHTML = renderUsage();
+  else if(activeTab==="inventory") c.innerHTML = renderInventory();
+  else if(activeTab==="export") c.innerHTML = renderExport();
+  attachEvents();
+}
+
+function renderDashboard(){
+  const me = getMonthEntries();
+  const totalCost = me.reduce((s,e)=>s+(e.totalCost||0),0);
+  const low = getLowStock();
+
+  // Category breakdown
+  const catMap={};
+  me.forEach(e=>{if(!catMap[e.category])catMap[e.category]={name:e.category,value:0};catMap[e.category].value+=e.totalCost||0;});
+  const cats=Object.values(catMap).sort((a,b)=>b.value-a.value);
+  const catMax=Math.max(...cats.map(c=>c.value),1);
+
+  // Daily spend
+  const dayMap={};
+  me.forEach(e=>{if(!dayMap[e.date])dayMap[e.date]={date:e.date,cost:0};dayMap[e.date].cost+=e.totalCost||0;});
+  const days=Object.values(dayMap).sort((a,b)=>a.date.localeCompare(b.date));
+  const dayMax=Math.max(...days.map(d=>d.cost),1);
+
+  // Top items
+  const itemMap={};
+  me.forEach(e=>{if(!itemMap[e.itemName])itemMap[e.itemName]={name:e.itemName,cost:0,qty:0};itemMap[e.itemName].cost+=e.totalCost||0;itemMap[e.itemName].qty+=e.quantity;});
+  const topItems=Object.values(itemMap).sort((a,b)=>b.cost-a.cost).slice(0,6);
+  const topMax=Math.max(...topItems.map(t=>t.cost),1);
+
+  return `
+    <div class="grid grid-4" style="margin-bottom:16px">
+      <div class="stat" style="border-color:#6366f1"><div class="label">Monthly Spend</div><div class="value" style="color:#6366f1">${fc(totalCost)}</div></div>
+      <div class="stat" style="border-color:#10b981"><div class="label">Usage Entries</div><div class="value" style="color:#10b981">${me.length}</div></div>
+      <div class="stat" style="border-color:#f59e0b"><div class="label">Items Tracked</div><div class="value" style="color:#f59e0b">${items.length}</div></div>
+      <div class="stat" style="border-color:#ef4444"><div class="label">Low Stock Alerts</div><div class="value" style="color:#ef4444">${low.length}</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:16px">Daily Spending — ${selectedMonth}</h3>
+        ${days.length>0?`
+          <div class="bar-container">
+            ${days.map(d=>`
+              <div class="bar-wrapper">
+                <div class="bar" style="background:#6366f1;height:${Math.max((d.cost/dayMax)*180,3)}px" data-tooltip="${d.date}: ${fc(d.cost)}"></div>
+                <div class="bar-label">${d.date.slice(5)}</div>
+              </div>
+            `).join("")}
+          </div>
+        `:`<p class="empty">No entries yet. Go to Usage Log to add entries.</p>`}
+      </div>
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:16px">By Category</h3>
+        ${cats.length>0?`
+          <div class="pie-visual">
+            <div class="pie-bars">
+              ${cats.map((c,i)=>`<div class="pie-bar" style="background:${COLORS[i%COLORS.length]};height:${Math.max((c.value/catMax)*130,4)}px" data-tooltip="${c.name}: ${fc(c.value)}"></div>`).join("")}
+            </div>
+            <div class="pie-legend">
+              ${cats.map((c,i)=>`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${COLORS[i%COLORS.length]}"></div><span>${c.name} — ${fc(c.value)}</span></div>`).join("")}
+            </div>
+          </div>
+        `:`<p class="empty">No data yet</p>`}
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:16px">Top Consumed Items</h3>
+        ${topItems.length>0?`
+          <div>
+            ${topItems.map(t=>`
+              <div class="top-item-row">
+                <div class="top-item-label">${t.name}</div>
+                <div class="top-item-bar" style="background:#f59e0b;width:${Math.max((t.cost/topMax)*100,5)}%"></div>
+                <div class="top-item-value">${fc(t.cost)}</div>
+              </div>
+            `).join("")}
+          </div>
+        `:`<p class="empty">No data yet</p>`}
+      </div>
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:16px;${low.length>0?"color:#ef4444":""}">${low.length>0?"\u26A0\uFE0F Low Stock Alerts":"Stock Status"}</h3>
+        ${low.length>0?low.map(item=>`
+          <div class="alert-row">
+            <div><div style="font-weight:600;font-size:14px">${item.name}</div><div style="font-size:12px;color:#64748b">${item.supplier}</div></div>
+            <div style="text-align:right"><div style="font-weight:700;color:#ef4444">${item.stock} ${item.unit}</div><div style="font-size:11px;color:#94a3b8">Min: ${item.reorderLevel}</div></div>
+          </div>
+        `).join(""):`<p style="color:#10b981;text-align:center;padding:40px;font-weight:600">All items well stocked</p>`}
+      </div>
+    </div>
+  `;
+}
+
+function renderUsage(){
+  const me = getMonthEntries().sort((a,b)=>b.date.localeCompare(a.date));
+  const total = me.reduce((s,e)=>s+(e.totalCost||0),0);
+  return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <h3 style="font-size:16px">Usage Log — ${selectedMonth}</h3>
+        <div class="flex-row">
+          <input class="input" style="width:220px" placeholder="Search items or people..." id="usageSearch" oninput="filterUsage()">
+          <button class="btn" onclick="openAddEntry()">+ Log Usage</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Date</th><th>Item</th><th>Category</th><th>Qty</th><th>Total Cost</th><th>Requested By</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="usageBody">
+          ${me.length>0?me.map(e=>`
+            <tr data-search="${(e.itemName||'').toLowerCase()} ${(e.requestedBy||'').toLowerCase()}">
+              <td>${e.date}</td>
+              <td style="font-weight:600">${e.itemName}</td>
+              <td>${badgeHTML(e.category, CATEGORIES.indexOf(e.category))}</td>
+              <td>${e.quantity} ${e.unit}</td>
+              <td style="font-weight:600">${fc(e.totalCost)}</td>
+              <td>${e.requestedBy||"—"}</td>
+              <td style="color:#94a3b8;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.notes||"—"}</td>
+              <td><button class="btn-sm red" onclick="deleteEntry('${e.id}','${e.itemId}',${e.quantity})">Delete</button></td>
+            </tr>
+          `).join(""):`<tr><td colspan="8"><p class="empty">No usage entries for this month. Click "+ Log Usage" to add one.</p></td></tr>`}
+        </tbody>
+        ${me.length>0?`<tfoot><tr class="tfoot-total"><td colspan="4">Total</td><td class="cost">${fc(total)}</td><td colspan="3"></td></tr></tfoot>`:""}
+      </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderInventory(){
+  return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <h3 style="font-size:16px">Inventory (${items.length} items)</h3>
+        <div class="flex-row">
+          <input class="input" style="width:220px" placeholder="Search items..." id="invSearch" oninput="filterInventory()">
+          <button class="btn" onclick="openAddItem()">+ Add Item</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Item</th><th>Category</th><th>Unit</th><th>Cost/Unit</th><th>Stock</th><th>Reorder At</th><th>Supplier</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="invBody">
+          ${items.map(item=>`
+            <tr data-search="${item.name.toLowerCase()} ${item.category.toLowerCase()}">
+              <td style="font-weight:600">${item.name}</td>
+              <td>${badgeHTML(item.category, CATEGORIES.indexOf(item.category))}</td>
+              <td>${item.unit}</td>
+              <td>${fc(item.costPerUnit)}</td>
+              <td style="font-weight:700">${item.stock}</td>
+              <td>${item.reorderLevel}</td>
+              <td>${item.supplier||"—"}</td>
+              <td>${statusBadge(item)}</td>
+              <td>
+                <div class="flex-row">
+                  <button class="btn-sm" onclick="openEditItem('${item.id}')">Edit</button>
+                  <button class="btn-sm red" onclick="deleteItem('${item.id}')">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderExport(){
+  const me = getMonthEntries();
+  return `
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px">Export & Backup Your Data</h3>
+      <p style="color:#64748b;margin-bottom:24px;font-size:14px">Download your grocery data so you never lose it. Use JSON backup to save and restore everything later.</p>
+      <div id="importMsg"></div>
+      <div class="grid grid-4">
+        <div class="export-card">
+          <div class="icon">&#128202;</div>
+          <h4>Monthly CSV</h4>
+          <p>Export ${selectedMonth} usage as CSV (opens in Excel/Sheets).</p>
+          <button class="btn" onclick="exportCSV('month')" ${me.length===0?"disabled":""}>Download</button>
+        </div>
+        <div class="export-card">
+          <div class="icon">&#128195;</div>
+          <h4>All Data CSV</h4>
+          <p>Export ALL usage entries across all months as CSV.</p>
+          <button class="btn btn-green" onclick="exportCSV('all')" ${entries.length===0?"disabled":""}>Download</button>
+        </div>
+        <div class="export-card">
+          <div class="icon">&#128190;</div>
+          <h4>Full Backup</h4>
+          <p>Save everything (items + entries) as JSON for safe backup.</p>
+          <button class="btn btn-purple" onclick="exportJSON()">Backup</button>
+        </div>
+        <div class="export-card">
+          <div class="icon">&#128229;</div>
+          <h4>Restore Backup</h4>
+          <p>Upload a JSON backup to restore all your data.</p>
+          <label class="btn btn-amber" style="cursor:pointer">Upload<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// =================== ACTIONS ===================
+
+function openAddEntry(){
+  document.getElementById("modalTitle").textContent="Log Grocery Usage";
+  document.getElementById("modalBody").innerHTML=`
+    <div class="field"><label>Item *</label><select class="input" id="entryItem" onchange="updateCostPreview()">${itemSelectOptions("")}</select></div>
+    <div class="grid grid-2">
+      <div class="field"><label>Quantity *</label><input type="number" class="input" id="entryQty" placeholder="0" oninput="updateCostPreview()"></div>
+      <div class="field"><label>Date</label><input type="date" class="input" id="entryDate" value="${new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <div class="field"><label>Requested By</label><input class="input" id="entryBy" placeholder="e.g. Abhishek"></div>
+    <div class="field"><label>Notes</label><input class="input" id="entryNotes" placeholder="Optional notes"></div>
+    <div id="costPreview"></div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="addEntry()">Log Usage</button>
+  `;
+  document.getElementById("modalOverlay").style.display="flex";
+}
+
+function updateCostPreview(){
+  const itemId=document.getElementById("entryItem").value;
+  const qty=Number(document.getElementById("entryQty").value)||0;
+  const item=items.find(i=>i.id===itemId);
+  const el=document.getElementById("costPreview");
+  if(item&&qty>0){
+    el.innerHTML=`<div class="cost-preview"><strong>Cost preview:</strong> ${qty} &times; ${fc(item.costPerUnit)} = <strong>${fc(qty*item.costPerUnit)}</strong></div>`;
+  } else { el.innerHTML=""; }
+}
+
+function addEntry(){
+  const itemId=document.getElementById("entryItem").value;
+  const qty=Number(document.getElementById("entryQty").value);
+  const date=document.getElementById("entryDate").value;
+  const by=document.getElementById("entryBy").value;
+  const notes=document.getElementById("entryNotes").value;
+  if(!itemId||!qty){alert("Please select an item and enter quantity.");return;}
+  const item=items.find(i=>i.id===itemId);
+  entries.push({id:gid(),itemId,quantity:qty,date,requestedBy:by,notes,totalCost:qty*(item?.costPerUnit||0),itemName:item?.name,category:item?.category,unit:item?.unit});
+  // Reduce stock
+  const idx=items.findIndex(i=>i.id===itemId);
+  if(idx>=0) items[idx].stock=Math.max(0,items[idx].stock-qty);
+  saveData(); closeModal(); render();
+}
+
+function deleteEntry(id,itemId,qty){
+  if(!confirm("Delete this usage entry? Stock will be restored.")) return;
+  entries=entries.filter(e=>e.id!==id);
+  const idx=items.findIndex(i=>i.id===itemId);
+  if(idx>=0) items[idx].stock+=qty;
+  saveData(); render();
+}
+
+function openAddItem(){
+  document.getElementById("modalTitle").textContent="Add New Grocery Item";
+  document.getElementById("modalBody").innerHTML=`
+    <div class="field"><label>Item Name *</label><input class="input" id="itemName" placeholder="e.g. Green Tea"></div>
+    <div class="grid grid-2">
+      <div class="field"><label>Category</label><select class="input" id="itemCat">${selectOptions(CATEGORIES,CATEGORIES[0])}</select></div>
+      <div class="field"><label>Unit</label><select class="input" id="itemUnit">${selectOptions(UNITS,UNITS[0])}</select></div>
+    </div>
+    <div class="grid grid-3">
+      <div class="field"><label>Cost/Unit (\u20B9) *</label><input type="number" class="input" id="itemCost" placeholder="0"></div>
+      <div class="field"><label>Current Stock</label><input type="number" class="input" id="itemStock" placeholder="0"></div>
+      <div class="field"><label>Reorder Level</label><input type="number" class="input" id="itemReorder" placeholder="0"></div>
+    </div>
+    <div class="field"><label>Supplier</label><input class="input" id="itemSupplier" placeholder="e.g. BigBasket, Amazon"></div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="addItem()">Add Item</button>
+  `;
+  document.getElementById("modalOverlay").style.display="flex";
+}
+
+function addItem(){
+  const name=document.getElementById("itemName").value.trim();
+  const cost=Number(document.getElementById("itemCost").value);
+  if(!name||!cost){alert("Please enter item name and cost.");return;}
+  items.push({id:gid(),name,category:document.getElementById("itemCat").value,unit:document.getElementById("itemUnit").value,costPerUnit:cost,stock:Number(document.getElementById("itemStock").value)||0,reorderLevel:Number(document.getElementById("itemReorder").value)||0,supplier:document.getElementById("itemSupplier").value.trim()});
+  saveData(); closeModal(); render();
+}
+
+function openEditItem(id){
+  const item=items.find(i=>i.id===id);
+  if(!item)return;
+  document.getElementById("modalTitle").textContent="Edit Item";
+  document.getElementById("modalBody").innerHTML=`
+    <div class="field"><label>Item Name</label><input class="input" id="editName" value="${item.name}"></div>
+    <div class="grid grid-2">
+      <div class="field"><label>Category</label><select class="input" id="editCat">${selectOptions(CATEGORIES,item.category)}</select></div>
+      <div class="field"><label>Unit</label><select class="input" id="editUnit">${selectOptions(UNITS,item.unit)}</select></div>
+    </div>
+    <div class="grid grid-3">
+      <div class="field"><label>Cost/Unit (\u20B9)</label><input type="number" class="input" id="editCost" value="${item.costPerUnit}"></div>
+      <div class="field"><label>Stock</label><input type="number" class="input" id="editStock" value="${item.stock}"></div>
+      <div class="field"><label>Reorder Level</label><input type="number" class="input" id="editReorder" value="${item.reorderLevel}"></div>
+    </div>
+    <div class="field"><label>Supplier</label><input class="input" id="editSupplier" value="${item.supplier||""}"></div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="saveEditItem('${id}')">Save Changes</button>
+  `;
+  document.getElementById("modalOverlay").style.display="flex";
+}
+
+function saveEditItem(id){
+  const idx=items.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  items[idx]={...items[idx],name:document.getElementById("editName").value.trim(),category:document.getElementById("editCat").value,unit:document.getElementById("editUnit").value,costPerUnit:Number(document.getElementById("editCost").value),stock:Number(document.getElementById("editStock").value),reorderLevel:Number(document.getElementById("editReorder").value),supplier:document.getElementById("editSupplier").value.trim()};
+  saveData(); closeModal(); render();
+}
+
+function deleteItem(id){
+  if(!confirm("Delete this item? All usage entries for it will also be removed.")) return;
+  items=items.filter(i=>i.id!==id);
+  entries=entries.filter(e=>e.itemId!==id);
+  saveData(); render();
+}
+
+function closeModal(){document.getElementById("modalOverlay").style.display="none";}
+
+// =================== SEARCH ===================
+function filterUsage(){
+  const q=document.getElementById("usageSearch").value.toLowerCase();
+  document.querySelectorAll("#usageBody tr").forEach(r=>{
+    const s=r.getAttribute("data-search")||"";
+    r.style.display=(!q||s.includes(q))?"":"none";
+  });
+}
+function filterInventory(){
+  const q=document.getElementById("invSearch").value.toLowerCase();
+  document.querySelectorAll("#invBody tr").forEach(r=>{
+    const s=r.getAttribute("data-search")||"";
+    r.style.display=(!q||s.includes(q))?"":"none";
+  });
+}
+
+// =================== EXPORT ===================
+function exportCSV(scope){
+  const data = scope==="month"?getMonthEntries():entries;
+  const headers=["Date","Item","Category","Quantity","Unit","Cost/Unit","Total Cost","Requested By","Notes"];
+  const rows=data.map(e=>{const it=items.find(i=>i.id===e.itemId);return[e.date,e.itemName,e.category,e.quantity,e.unit,it?.costPerUnit||"",e.totalCost,e.requestedBy,e.notes];});
+  const csv=[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+  download(csv,"text/csv",scope==="month"?`grocery-${selectedMonth}.csv`:"grocery-ALL.csv");
+}
+
+function exportJSON(){
+  const data={exportDate:new Date().toISOString(),items,entries};
+  download(JSON.stringify(data,null,2),"application/json",`grocery-backup-${new Date().toISOString().slice(0,10)}.json`);
+}
+
+function importJSON(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(data.items) items=data.items;
+      if(data.entries) entries=data.entries;
+      saveData();
+      render();
+      const el=document.getElementById("importMsg");
+      if(el) el.innerHTML=`<div class="success-msg">Data restored successfully! ${items.length} items and ${entries.length} entries loaded.</div>`;
+    }catch(err){
+      const el=document.getElementById("importMsg");
+      if(el) el.innerHTML=`<div class="error-msg">Error: Invalid JSON file. Please check the file and try again.</div>`;
+    }
+  };
+  reader.readAsText(file);
+  e.target.value="";
+}
+
+function download(content,type,filename){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+function attachEvents(){}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
