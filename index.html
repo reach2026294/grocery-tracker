@@ -11,10 +11,42 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
 button{cursor:pointer;font-family:inherit;}
 input,select{font-family:inherit;}
+
+/* ========== AUTH STYLES ========== */
+.auth-container{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a78bfa 100%);padding:20px;}
+.auth-card{background:#fff;border-radius:20px;padding:40px;width:100%;max-width:420px;box-shadow:0 25px 80px rgba(0,0,0,0.25);}
+.auth-card h1{font-size:24px;text-align:center;color:#1e293b;margin-bottom:4px;}
+.auth-card .subtitle{text-align:center;color:#64748b;font-size:14px;margin-bottom:28px;}
+.auth-card .logo{text-align:center;font-size:48px;margin-bottom:12px;}
+.auth-tabs{display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:4px;margin-bottom:24px;}
+.auth-tabs button{flex:1;padding:10px;border:none;border-radius:8px;font-weight:600;font-size:14px;background:transparent;color:#64748b;transition:all 0.2s;}
+.auth-tabs button.active{background:#6366f1;color:#fff;}
+.auth-field{margin-bottom:16px;}
+.auth-field label{display:block;font-size:13px;font-weight:600;color:#64748b;margin-bottom:6px;}
+.auth-field input{width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;transition:border 0.2s;}
+.auth-field input:focus{border-color:#6366f1;}
+.auth-btn{width:100%;padding:14px;border:none;border-radius:10px;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);margin-top:8px;transition:opacity 0.2s;}
+.auth-btn:hover{opacity:0.9;}
+.auth-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.auth-error{background:#fef2f2;color:#ef4444;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
+.auth-success{background:#f0fdf4;color:#10b981;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
+.auth-footer{text-align:center;margin-top:20px;font-size:13px;color:#94a3b8;}
+.auth-loading{text-align:center;padding:40px;color:#64748b;}
+.auth-spinner{display:inline-block;width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.forgot-link{text-align:right;margin-top:-8px;margin-bottom:16px;}
+.forgot-link a{color:#6366f1;font-size:13px;text-decoration:none;cursor:pointer;}
+.forgot-link a:hover{text-decoration:underline;}
+
+/* ========== APP STYLES ========== */
 .header{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
 .header h1{font-size:22px;font-weight:700;}
 .header p{margin-top:4px;opacity:0.8;font-size:14px;}
 .header input[type=month]{padding:8px 12px;border:2px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:#fff;outline:none;}
+.user-info{display:flex;align-items:center;gap:12px;}
+.user-badge{background:rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;}
+.logout-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;transition:background 0.2s;}
+.logout-btn:hover{background:rgba(255,255,255,0.3);}
 .nav{display:flex;gap:4px;background:#fff;margin:0 20px;border-radius:0 0 12px 12px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
 .nav button{padding:10px 20px;border:none;border-radius:8px;font-weight:600;font-size:14px;background:transparent;color:#64748b;transition:all 0.2s;}
 .nav button.active{background:#6366f1;color:#fff;}
@@ -74,44 +106,332 @@ td{padding:12px 14px;border-bottom:1px solid #f1f5f9;}
 .top-item-bar{height:22px;border-radius:4px;transition:width 0.3s;}
 .top-item-label{font-size:13px;min-width:100px;text-align:right;font-weight:600;}
 .top-item-value{font-size:12px;color:#64748b;white-space:nowrap;}
+.hidden{display:none!important;}
+
+/* Admin panel */
+.admin-user-row{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#f8fafc;border-radius:8px;margin-bottom:8px;}
+.admin-user-email{font-size:14px;font-weight:500;}
+.admin-user-role{font-size:12px;color:#6366f1;font-weight:600;}
+.admin-badge{background:#6366f118;color:#6366f1;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+
 @media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2,.grid-3{grid-template-columns:1fr;}}
 @media(max-width:600px){.grid-4{grid-template-columns:1fr;}.nav{flex-wrap:wrap;}.header{flex-direction:column;align-items:flex-start;}}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div>
+<!-- ========== AUTH SCREEN ========== -->
+<div id="authScreen" class="auth-container">
+  <div class="auth-card">
+    <div class="logo">&#127819;</div>
     <h1>Office Grocery Tracker</h1>
-    <p>Track daily usage, monitor stock, control costs</p>
-  </div>
-  <div class="flex-row">
-    <label style="font-size:13px;opacity:0.8">Month:</label>
-    <input type="month" id="monthPicker">
-  </div>
-</div>
+    <p class="subtitle">Sign in to manage your office groceries</p>
 
-<div class="nav" id="nav">
-  <button class="active" data-tab="dashboard">Dashboard</button>
-  <button data-tab="usage">Usage Log</button>
-  <button data-tab="inventory">Inventory</button>
-  <button data-tab="export">Export & Backup</button>
-</div>
-
-<div class="content" id="content"></div>
-
-<!-- Modals -->
-<div class="overlay" id="modalOverlay" style="display:none" onclick="closeModal()">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h3 id="modalTitle"></h3>
-      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    <div class="auth-tabs" id="authTabs">
+      <button class="active" data-mode="login">Sign In</button>
+      <button data-mode="signup">Sign Up</button>
     </div>
-    <div id="modalBody"></div>
+
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-success" id="authSuccess"></div>
+
+    <div id="authFormLogin">
+      <div class="auth-field">
+        <label>Email Address</label>
+        <input type="email" id="loginEmail" placeholder="you@company.com">
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password">
+      </div>
+      <div class="forgot-link"><a onclick="showResetPassword()">Forgot password?</a></div>
+      <button class="auth-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
+    </div>
+
+    <div id="authFormSignup" class="hidden">
+      <div class="auth-field">
+        <label>Display Name</label>
+        <input type="text" id="signupName" placeholder="Your name">
+      </div>
+      <div class="auth-field">
+        <label>Email Address</label>
+        <input type="email" id="signupEmail" placeholder="you@company.com">
+      </div>
+      <div class="auth-field">
+        <label>Password (min 6 characters)</label>
+        <input type="password" id="signupPassword" placeholder="Create a password">
+      </div>
+      <button class="auth-btn" id="signupBtn" onclick="handleSignup()">Create Account</button>
+    </div>
+
+    <div id="authFormReset" class="hidden">
+      <div class="auth-field">
+        <label>Email Address</label>
+        <input type="email" id="resetEmail" placeholder="you@company.com">
+      </div>
+      <button class="auth-btn" onclick="handleResetPassword()">Send Reset Link</button>
+      <div style="text-align:center;margin-top:12px">
+        <a style="color:#6366f1;font-size:13px;cursor:pointer;text-decoration:none" onclick="showLogin()">Back to Sign In</a>
+      </div>
+    </div>
+
+    <div class="auth-footer">Secure login powered by Firebase</div>
   </div>
 </div>
+
+<!-- ========== LOADING SCREEN ========== -->
+<div id="loadingScreen" class="auth-container hidden">
+  <div class="auth-loading">
+    <div class="auth-spinner"></div>
+    <p>Loading your data...</p>
+  </div>
+</div>
+
+<!-- ========== MAIN APP ========== -->
+<div id="appScreen" class="hidden">
+  <div class="header">
+    <div>
+      <h1>Office Grocery Tracker</h1>
+      <p>Track daily usage, monitor stock, control costs</p>
+    </div>
+    <div class="flex-row" style="flex-wrap:wrap;gap:12px">
+      <div class="flex-row">
+        <label style="font-size:13px;opacity:0.8">Month:</label>
+        <input type="month" id="monthPicker">
+      </div>
+      <div class="user-info">
+        <span class="user-badge" id="userBadge"></span>
+        <button class="logout-btn" onclick="handleLogout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav" id="nav">
+    <button class="active" data-tab="dashboard">Dashboard</button>
+    <button data-tab="usage">Usage Log</button>
+    <button data-tab="inventory">Inventory</button>
+    <button data-tab="export">Export & Backup</button>
+    <button data-tab="admin" id="adminTab" class="hidden">Admin</button>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <!-- Modals -->
+  <div class="overlay" id="modalOverlay" style="display:none" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="modalTitle"></h3>
+        <button class="modal-close" onclick="closeModal()">&#10005;</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== FIREBASE SETUP SCREEN ========== -->
+<!-- Setup screen removed - Firebase config is hardcoded -->
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <script>
+// =================== FIREBASE CONFIG ===================
+let firebaseApp = null;
+let auth = null;
+let currentUser = null;
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBonSaA3vaynpLHUojOM4-kfqD1D0zkk3g",
+  authDomain: "office-grocery-tracker.firebaseapp.com",
+  projectId: "office-grocery-tracker",
+  storageBucket: "office-grocery-tracker.firebasestorage.app",
+  messagingSenderId: "402023883030",
+  appId: "1:402023883030:web:b1eec3c914564d06e0b037"
+};
+
+function initFirebase(config) {
+  try {
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(config);
+    } else {
+      firebaseApp = firebase.apps[0];
+    }
+    auth = firebase.auth();
+
+    // Show loading, hide setup
+    showScreen("loading");
+
+    // Listen for auth state
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        currentUser = user;
+        onUserLoggedIn();
+      } else {
+        currentUser = null;
+        showScreen("auth");
+      }
+    });
+  } catch(e) {
+    console.error("Firebase init error:", e.message);
+    alert("Firebase initialization error: " + e.message);
+  }
+}
+
+// =================== SCREEN MANAGEMENT ===================
+function showScreen(name) {
+  document.getElementById("authScreen").classList.toggle("hidden", name !== "auth");
+  document.getElementById("loadingScreen").classList.toggle("hidden", name !== "loading");
+  document.getElementById("appScreen").classList.toggle("hidden", name !== "app");
+  // setupScreen removed - config is hardcoded
+}
+
+// =================== AUTH HANDLERS ===================
+document.getElementById("authTabs").addEventListener("click", function(e) {
+  if (e.target.tagName === "BUTTON") {
+    const mode = e.target.dataset.mode;
+    document.querySelectorAll("#authTabs button").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    document.getElementById("authFormLogin").classList.toggle("hidden", mode !== "login");
+    document.getElementById("authFormSignup").classList.toggle("hidden", mode !== "signup");
+    document.getElementById("authFormReset").classList.add("hidden");
+    clearAuthMessages();
+  }
+});
+
+function clearAuthMessages() {
+  document.getElementById("authError").style.display = "none";
+  document.getElementById("authSuccess").style.display = "none";
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById("authError");
+  el.textContent = msg;
+  el.style.display = "block";
+  document.getElementById("authSuccess").style.display = "none";
+}
+
+function showAuthSuccess(msg) {
+  const el = document.getElementById("authSuccess");
+  el.textContent = msg;
+  el.style.display = "block";
+  document.getElementById("authError").style.display = "none";
+}
+
+function handleLogin() {
+  clearAuthMessages();
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  if (!email || !password) { showAuthError("Please enter email and password."); return; }
+
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true;
+  btn.textContent = "Signing in...";
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then(function() { btn.disabled = false; btn.textContent = "Sign In"; })
+    .catch(function(error) {
+      btn.disabled = false;
+      btn.textContent = "Sign In";
+      if (error.code === "auth/user-not-found") showAuthError("No account found with this email.");
+      else if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") showAuthError("Incorrect password. Please try again.");
+      else if (error.code === "auth/invalid-email") showAuthError("Please enter a valid email address.");
+      else if (error.code === "auth/too-many-requests") showAuthError("Too many attempts. Please try again later.");
+      else showAuthError(error.message);
+    });
+}
+
+function handleSignup() {
+  clearAuthMessages();
+  const name = document.getElementById("signupName").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const password = document.getElementById("signupPassword").value;
+  if (!name || !email || !password) { showAuthError("Please fill in all fields."); return; }
+  if (password.length < 6) { showAuthError("Password must be at least 6 characters."); return; }
+
+  const btn = document.getElementById("signupBtn");
+  btn.disabled = true;
+  btn.textContent = "Creating account...";
+
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(function(cred) {
+      return cred.user.updateProfile({ displayName: name });
+    })
+    .then(function() { btn.disabled = false; btn.textContent = "Create Account"; })
+    .catch(function(error) {
+      btn.disabled = false;
+      btn.textContent = "Create Account";
+      if (error.code === "auth/email-already-in-use") showAuthError("An account with this email already exists. Please sign in.");
+      else if (error.code === "auth/weak-password") showAuthError("Password is too weak. Use at least 6 characters.");
+      else if (error.code === "auth/invalid-email") showAuthError("Please enter a valid email address.");
+      else showAuthError(error.message);
+    });
+}
+
+function showResetPassword() {
+  document.getElementById("authFormLogin").classList.add("hidden");
+  document.getElementById("authFormSignup").classList.add("hidden");
+  document.getElementById("authFormReset").classList.remove("hidden");
+  document.querySelectorAll("#authTabs button").forEach(b => b.classList.remove("active"));
+  clearAuthMessages();
+}
+
+function showLogin() {
+  document.getElementById("authFormLogin").classList.remove("hidden");
+  document.getElementById("authFormSignup").classList.add("hidden");
+  document.getElementById("authFormReset").classList.add("hidden");
+  document.querySelectorAll("#authTabs button")[0].classList.add("active");
+  clearAuthMessages();
+}
+
+function handleResetPassword() {
+  clearAuthMessages();
+  const email = document.getElementById("resetEmail").value.trim();
+  if (!email) { showAuthError("Please enter your email address."); return; }
+
+  auth.sendPasswordResetEmail(email)
+    .then(function() { showAuthSuccess("Password reset email sent! Check your inbox."); })
+    .catch(function(error) {
+      if (error.code === "auth/user-not-found") showAuthError("No account found with this email.");
+      else showAuthError(error.message);
+    });
+}
+
+function handleLogout() {
+  auth.signOut();
+}
+
+// Enter key support
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    if (!document.getElementById("authFormLogin").classList.contains("hidden")) handleLogin();
+    else if (!document.getElementById("authFormSignup").classList.contains("hidden")) handleSignup();
+  }
+});
+
+// =================== ON USER LOGGED IN ===================
+function onUserLoggedIn() {
+  // Show user name in header
+  const name = currentUser.displayName || currentUser.email.split("@")[0];
+  document.getElementById("userBadge").textContent = name;
+
+  // Check if first user (admin)
+  const adminEmail = localStorage.getItem("gt_admin_email");
+  if (!adminEmail) {
+    // First user becomes admin
+    localStorage.setItem("gt_admin_email", currentUser.email);
+  }
+
+  // Show/hide admin tab
+  const isAdmin = currentUser.email === localStorage.getItem("gt_admin_email");
+  document.getElementById("adminTab").classList.toggle("hidden", !isAdmin);
+
+  // Load data and show app
+  loadData();
+  showScreen("app");
+  render();
+}
+
 // =================== DATA ===================
 const CATEGORIES = ["Beverages","Snacks","Kitchen Supplies","Cleaning Items","Disposables","Fruits & Vegetables","Dairy","Other"];
 const UNITS = ["pcs","kg","g","liters","ml","packets","bottles","boxes","dozen","rolls"];
@@ -150,7 +470,6 @@ function loadData(){
     if(e) entries=JSON.parse(e);
   }catch(e){}
 }
-loadData();
 
 // =================== INIT ===================
 const monthPicker = document.getElementById("monthPicker");
@@ -178,7 +497,7 @@ function selectOptions(arr, selectedVal){
 }
 
 function itemSelectOptions(selId){
-  return `<option value="">— Select item —</option>`+items.map(i=>`<option value="${i.id}" ${i.id===selId?"selected":""}>${i.name} (${i.stock} ${i.unit} in stock)</option>`).join("");
+  return `<option value="">â Select item â</option>`+items.map(i=>`<option value="${i.id}" ${i.id===selId?"selected":""}>${i.name} (${i.stock} ${i.unit} in stock)</option>`).join("");
 }
 
 function badgeHTML(text, colorIdx){
@@ -199,6 +518,7 @@ function render(){
   else if(activeTab==="usage") c.innerHTML = renderUsage();
   else if(activeTab==="inventory") c.innerHTML = renderInventory();
   else if(activeTab==="export") c.innerHTML = renderExport();
+  else if(activeTab==="admin") c.innerHTML = renderAdmin();
   attachEvents();
 }
 
@@ -207,19 +527,16 @@ function renderDashboard(){
   const totalCost = me.reduce((s,e)=>s+(e.totalCost||0),0);
   const low = getLowStock();
 
-  // Category breakdown
   const catMap={};
   me.forEach(e=>{if(!catMap[e.category])catMap[e.category]={name:e.category,value:0};catMap[e.category].value+=e.totalCost||0;});
   const cats=Object.values(catMap).sort((a,b)=>b.value-a.value);
   const catMax=Math.max(...cats.map(c=>c.value),1);
 
-  // Daily spend
   const dayMap={};
   me.forEach(e=>{if(!dayMap[e.date])dayMap[e.date]={date:e.date,cost:0};dayMap[e.date].cost+=e.totalCost||0;});
   const days=Object.values(dayMap).sort((a,b)=>a.date.localeCompare(b.date));
   const dayMax=Math.max(...days.map(d=>d.cost),1);
 
-  // Top items
   const itemMap={};
   me.forEach(e=>{if(!itemMap[e.itemName])itemMap[e.itemName]={name:e.itemName,cost:0,qty:0};itemMap[e.itemName].cost+=e.totalCost||0;itemMap[e.itemName].qty+=e.quantity;});
   const topItems=Object.values(itemMap).sort((a,b)=>b.cost-a.cost).slice(0,6);
@@ -234,7 +551,7 @@ function renderDashboard(){
     </div>
     <div class="grid grid-2" style="margin-bottom:16px">
       <div class="card">
-        <h3 style="font-size:16px;margin-bottom:16px">Daily Spending — ${selectedMonth}</h3>
+        <h3 style="font-size:16px;margin-bottom:16px">Daily Spending â ${selectedMonth}</h3>
         ${days.length>0?`
           <div class="bar-container">
             ${days.map(d=>`
@@ -254,7 +571,7 @@ function renderDashboard(){
               ${cats.map((c,i)=>`<div class="pie-bar" style="background:${COLORS[i%COLORS.length]};height:${Math.max((c.value/catMax)*130,4)}px" data-tooltip="${c.name}: ${fc(c.value)}"></div>`).join("")}
             </div>
             <div class="pie-legend">
-              ${cats.map((c,i)=>`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${COLORS[i%COLORS.length]}"></div><span>${c.name} — ${fc(c.value)}</span></div>`).join("")}
+              ${cats.map((c,i)=>`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${COLORS[i%COLORS.length]}"></div><span>${c.name} â ${fc(c.value)}</span></div>`).join("")}
             </div>
           </div>
         `:`<p class="empty">No data yet</p>`}
@@ -294,7 +611,7 @@ function renderUsage(){
   return `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <h3 style="font-size:16px">Usage Log — ${selectedMonth}</h3>
+        <h3 style="font-size:16px">Usage Log â ${selectedMonth}</h3>
         <div class="flex-row">
           <input class="input" style="width:220px" placeholder="Search items or people..." id="usageSearch" oninput="filterUsage()">
           <button class="btn" onclick="openAddEntry()">+ Log Usage</button>
@@ -311,8 +628,8 @@ function renderUsage(){
               <td>${badgeHTML(e.category, CATEGORIES.indexOf(e.category))}</td>
               <td>${e.quantity} ${e.unit}</td>
               <td style="font-weight:600">${fc(e.totalCost)}</td>
-              <td>${e.requestedBy||"—"}</td>
-              <td style="color:#94a3b8;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.notes||"—"}</td>
+              <td>${e.requestedBy||"\u2014"}</td>
+              <td style="color:#94a3b8;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.notes||"\u2014"}</td>
               <td><button class="btn-sm red" onclick="deleteEntry('${e.id}','${e.itemId}',${e.quantity})">Delete</button></td>
             </tr>
           `).join(""):`<tr><td colspan="8"><p class="empty">No usage entries for this month. Click "+ Log Usage" to add one.</p></td></tr>`}
@@ -346,7 +663,7 @@ function renderInventory(){
               <td>${fc(item.costPerUnit)}</td>
               <td style="font-weight:700">${item.stock}</td>
               <td>${item.reorderLevel}</td>
-              <td>${item.supplier||"—"}</td>
+              <td>${item.supplier||"\u2014"}</td>
               <td>${statusBadge(item)}</td>
               <td>
                 <div class="flex-row">
@@ -400,9 +717,133 @@ function renderExport(){
   `;
 }
 
+function renderAdmin(){
+  const isAdmin = currentUser && currentUser.email === localStorage.getItem("gt_admin_email");
+  if (!isAdmin) return `<div class="card"><p class="empty">Access denied. Only admin can view this page.</p></div>`;
+
+  const allowedEmails = getAllowedEmails();
+
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="font-size:16px;margin-bottom:8px">Admin Panel</h3>
+      <p style="color:#64748b;font-size:14px;margin-bottom:20px">Manage who can sign up and access this application. Only people with allowed email addresses can create accounts.</p>
+
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px;margin-bottom:20px">
+        <div style="font-weight:600;font-size:14px;color:#0369a1;margin-bottom:4px">How access control works</div>
+        <div style="font-size:13px;color:#0c4a6e;line-height:1.6">
+          When you add email addresses below, only those addresses will be able to sign up.
+          If the allow-list is empty, anyone can create an account.
+          The admin (you: ${currentUser.email}) always has access.
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <h4 style="font-size:14px;margin-bottom:12px">Admin Account <span class="admin-badge">ADMIN</span></h4>
+        <div class="admin-user-row">
+          <div class="admin-user-email">${currentUser.email}</div>
+          <div class="admin-user-role" style="color:#10b981">Always has access</div>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="font-size:14px;margin-bottom:12px">Allowed Email Addresses (${allowedEmails.length})</h4>
+        <div id="allowedEmailsList">
+          ${allowedEmails.length > 0 ? allowedEmails.map((email, i) => `
+            <div class="admin-user-row">
+              <div class="admin-user-email">${email}</div>
+              <button class="btn-sm red" onclick="removeAllowedEmail(${i})">Remove</button>
+            </div>
+          `).join("") : `<p class="empty" style="padding:20px">No email restrictions set. Anyone can sign up.</p>`}
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <input class="input" id="newAllowedEmail" placeholder="colleague@company.com" style="flex:1">
+          <button class="btn" onclick="addAllowedEmail()">Add Email</button>
+        </div>
+        <div id="adminMsg" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px">Change Admin</h3>
+      <p style="color:#64748b;font-size:13px;margin-bottom:16px">Transfer admin rights to another email. You will lose admin access.</p>
+      <div style="display:flex;gap:10px">
+        <input class="input" id="newAdminEmail" placeholder="new-admin@company.com" style="flex:1">
+        <button class="btn btn-amber" onclick="changeAdmin()">Transfer Admin</button>
+      </div>
+      <div id="adminTransferMsg" style="margin-top:10px"></div>
+    </div>
+  `;
+}
+
+// =================== ADMIN FUNCTIONS ===================
+function getAllowedEmails() {
+  try {
+    const e = localStorage.getItem("gt_allowed_emails");
+    return e ? JSON.parse(e) : [];
+  } catch(e) { return []; }
+}
+
+function saveAllowedEmails(emails) {
+  localStorage.setItem("gt_allowed_emails", JSON.stringify(emails));
+}
+
+function addAllowedEmail() {
+  const input = document.getElementById("newAllowedEmail");
+  const email = input.value.trim().toLowerCase();
+  const msgEl = document.getElementById("adminMsg");
+
+  if (!email || !email.includes("@")) {
+    msgEl.innerHTML = `<div class="error-msg">Please enter a valid email address.</div>`;
+    return;
+  }
+
+  const emails = getAllowedEmails();
+  if (emails.includes(email)) {
+    msgEl.innerHTML = `<div class="error-msg">This email is already in the list.</div>`;
+    return;
+  }
+
+  emails.push(email);
+  saveAllowedEmails(emails);
+  input.value = "";
+  msgEl.innerHTML = `<div class="success-msg">Added ${email} to allowed list.</div>`;
+  render();
+}
+
+function removeAllowedEmail(index) {
+  const emails = getAllowedEmails();
+  const removed = emails.splice(index, 1);
+  saveAllowedEmails(emails);
+  render();
+}
+
+function changeAdmin() {
+  const newEmail = document.getElementById("newAdminEmail").value.trim().toLowerCase();
+  const msgEl = document.getElementById("adminTransferMsg");
+
+  if (!newEmail || !newEmail.includes("@")) {
+    msgEl.innerHTML = `<div class="error-msg">Please enter a valid email address.</div>`;
+    return;
+  }
+
+  if (!confirm("Are you sure you want to transfer admin rights to " + newEmail + "? You will lose admin access.")) return;
+
+  localStorage.setItem("gt_admin_email", newEmail);
+  // Make sure the new admin is in allowed list
+  const emails = getAllowedEmails();
+  if (!emails.includes(newEmail)) {
+    emails.push(newEmail);
+    saveAllowedEmails(emails);
+  }
+
+  msgEl.innerHTML = `<div class="success-msg">Admin transferred to ${newEmail}. Refreshing...</div>`;
+  setTimeout(function() { render(); }, 1500);
+}
+
 // =================== ACTIONS ===================
 
 function openAddEntry(){
+  const userName = currentUser ? (currentUser.displayName || currentUser.email.split("@")[0]) : "";
   document.getElementById("modalTitle").textContent="Log Grocery Usage";
   document.getElementById("modalBody").innerHTML=`
     <div class="field"><label>Item *</label><select class="input" id="entryItem" onchange="updateCostPreview()">${itemSelectOptions("")}</select></div>
@@ -410,7 +851,7 @@ function openAddEntry(){
       <div class="field"><label>Quantity *</label><input type="number" class="input" id="entryQty" placeholder="0" oninput="updateCostPreview()"></div>
       <div class="field"><label>Date</label><input type="date" class="input" id="entryDate" value="${new Date().toISOString().slice(0,10)}"></div>
     </div>
-    <div class="field"><label>Requested By</label><input class="input" id="entryBy" placeholder="e.g. Abhishek"></div>
+    <div class="field"><label>Requested By</label><input class="input" id="entryBy" placeholder="e.g. Abhishek" value="${userName}"></div>
     <div class="field"><label>Notes</label><input class="input" id="entryNotes" placeholder="Optional notes"></div>
     <div id="costPreview"></div>
     <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="addEntry()">Log Usage</button>
@@ -436,8 +877,7 @@ function addEntry(){
   const notes=document.getElementById("entryNotes").value;
   if(!itemId||!qty){alert("Please select an item and enter quantity.");return;}
   const item=items.find(i=>i.id===itemId);
-  entries.push({id:gid(),itemId,quantity:qty,date,requestedBy:by,notes,totalCost:qty*(item?.costPerUnit||0),itemName:item?.name,category:item?.category,unit:item?.unit});
-  // Reduce stock
+  entries.push({id:gid(),itemId,quantity:qty,date,requestedBy:by,notes,totalCost:qty*(item?.costPerUnit||0),itemName:item?.name,category:item?.category,unit:item?.unit,loggedBy:currentUser?.email||""});
   const idx=items.findIndex(i=>i.id===itemId);
   if(idx>=0) items[idx].stock=Math.max(0,items[idx].stock-qty);
   saveData(); closeModal(); render();
@@ -577,8 +1017,10 @@ function download(content,type,filename){
 
 function attachEvents(){}
 
-// Initial render
-render();
+// =================== STARTUP ===================
+(function startup() {
+  initFirebase(FIREBASE_CONFIG);
+})();
 </script>
 </body>
 </html>
