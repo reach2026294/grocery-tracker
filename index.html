@@ -1153,7 +1153,8 @@ function showUploadPreview(parsed, sheetName) {
     parsed.map(function(p){return '<tr><td style="font-weight:600">'+p.name+'</td><td>'+badgeHTML(p.category,CATEGORIES.indexOf(p.category))+'</td><td>'+p.unit+'</td><td>'+(p.costPerUnit>0?fc(p.costPerUnit):'\u2014')+'</td><td>'+p.stock+'</td></tr>'}).join('') +
     '</tbody></table></div>' +
     '<div style="background:#fef9c3;border:1px solid #eab308;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px">' +
-    '\u26a0\ufe0f Items with matching names will be <strong>updated</strong>. New items will be <strong>added</strong>. Existing items not in the file will be kept.</div>'<div class="upload-actions"><button class="btn" onclick="confirmUpload()">\u2713 Merge & Import</button>' +
+    '\u26a0\ufe0f Items with matching names will be <strong>updated</strong>. New items will be <strong>added</strong>. Existing items not in the file will be kept.</div>' +
+    '<div class="upload-actions"><button class="btn" onclick="confirmUpload()">\u2713 Merge & Import</button>' +
     '<button class="btn-sm" onclick="cancelUpload()">Cancel</button></div></div>';
 }
 
@@ -1176,10 +1177,10 @@ function downloadTemplate(){
 
     function confirmUpload(){
       if(!window._pendingUpload) return;
-      var parsed = window._pendingUpload;
-      var updated = 0, added = 0;
+      const parsed = window._pendingUpload;
+      let updated = 0, added = 0;
       parsed.forEach(function(p){
-        var existing = items.find(function(i){ return i.name.toLowerCase() === p.name.toLowerCase(); });
+        const existing = items.find(function(i){ return i.name.toLowerCase() === p.name.toLowerCase(); });
         if(existing){
           existing.category = p.category || existing.category;
           existing.unit = p.unit || existing.unit;
