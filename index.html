@@ -513,7 +513,7 @@ function selectOptions(arr, selectedVal){
 }
 
 function itemSelectOptions(selId){
-  return `<option value="">â Select item â</option>`+items.map(i=>`<option value="${i.id}" ${i.id===selId?"selected":""}>${i.name} (${i.stock} ${i.unit} in stock)</option>`).join("");
+  return `<option value="">— Select item —</option>`+items.map(i=>`<option value="${i.id}" ${i.id===selId?"selected":""}>${i.name} (${i.stock} ${i.unit} in stock)</option>`).join("");
 }
 
 function badgeHTML(text, colorIdx){
@@ -567,7 +567,7 @@ function renderDashboard(){
     </div>
     <div class="grid grid-2" style="margin-bottom:16px">
       <div class="card">
-        <h3 style="font-size:16px;margin-bottom:16px">Daily Spending â ${selectedMonth}</h3>
+        <h3 style="font-size:16px;margin-bottom:16px">Daily Spending — ${selectedMonth}</h3>
         ${days.length>0?`
           <div class="bar-container">
             ${days.map(d=>`
@@ -587,7 +587,7 @@ function renderDashboard(){
               ${cats.map((c,i)=>`<div class="pie-bar" style="background:${COLORS[i%COLORS.length]};height:${Math.max((c.value/catMax)*130,4)}px" data-tooltip="${c.name}: ${fc(c.value)}"></div>`).join("")}
             </div>
             <div class="pie-legend">
-              ${cats.map((c,i)=>`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${COLORS[i%COLORS.length]}"></div><span>${c.name} â ${fc(c.value)}</span></div>`).join("")}
+              ${cats.map((c,i)=>`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${COLORS[i%COLORS.length]}"></div><span>${c.name} — ${fc(c.value)}</span></div>`).join("")}
             </div>
           </div>
         `:`<p class="empty">No data yet</p>`}
@@ -627,9 +627,11 @@ function renderUsage(){
   return `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <h3 style="font-size:16px">Usage Log â ${selectedMonth}</h3>
+        <h3 style="font-size:16px">Usage Log — ${selectedMonth}</h3>
         <div class="flex-row">
+          <input type="date" class="input" style="width:150px" id="usageDateFilter" onchange="filterUsage()" value="">
           <input class="input" style="width:220px" placeholder="Search items or people..." id="usageSearch" oninput="filterUsage()">
+          <button class="btn-sm" onclick="clearUsageFilters()" style="color:#64748b" title="Clear filters">&#10005;</button>
           <button class="btn" onclick="openAddEntry()">+ Log Usage</button>
         </div>
       </div>
@@ -638,7 +640,7 @@ function renderUsage(){
         <thead><tr><th>Date</th><th>Item</th><th>Category</th><th>Qty</th><th>Total Cost</th><th>Requested By</th><th>Notes</th><th></th></tr></thead>
         <tbody id="usageBody">
           ${me.length>0?me.map(e=>`
-            <tr data-search="${(e.itemName||'').toLowerCase()} ${(e.requestedBy||'').toLowerCase()}">
+            <tr data-search="${(e.itemName||'').toLowerCase()} ${(e.requestedBy||'').toLowerCase()}" data-date="${e.date}">
               <td>${e.date}</td>
               <td style="font-weight:600">${e.itemName}</td>
               <td>${badgeHTML(e.category, CATEGORIES.indexOf(e.category))}</td>
@@ -990,12 +992,22 @@ function closeModal(){document.getElementById("modalOverlay").style.display="non
 
 // =================== SEARCH ===================
 function filterUsage(){
-  const q=document.getElementById("usageSearch").value.toLowerCase();
-  document.querySelectorAll("#usageBody tr").forEach(r=>{
-    const s=r.getAttribute("data-search")||"";
-    r.style.display=(!q||s.includes(q))?"":"none";
-  });
-}
+      const q=document.getElementById("usageSearch").value.toLowerCase();
+      const dateEl=document.getElementById("usageDateFilter");
+      const dateFilter=dateEl?dateEl.value:"";
+      document.querySelectorAll("#usageBody tr").forEach(r=>{
+        const s=r.getAttribute("data-search")||"";
+        const d=r.getAttribute("data-date")||"";
+        const matchText=!q||s.includes(q);
+        const matchDate=!dateFilter||d===dateFilter;
+        r.style.display=(matchText&&matchDate)?"":"none";
+      });
+    }
+    function clearUsageFilters(){
+      const s=document.getElementById("usageSearch");if(s)s.value="";
+      const d=document.getElementById("usageDateFilter");if(d)d.value="";
+      filterUsage();
+    }
 function filterInventory(){
   const q=document.getElementById("invSearch").value.toLowerCase();
   document.querySelectorAll("#invBody tr").forEach(r=>{
@@ -1176,8 +1188,8 @@ function downloadTemplate(){
     }
 
     function confirmUpload(){
-      if(!window._pendingUpload) return;
-      const parsed = window._pendingUpload;
+      if(!pendingUploadItems) return;
+      const parsed = pendingUploadItems;
       let updated = 0, added = 0;
       parsed.forEach(function(p){
         const existing = items.find(function(i){ return i.name.toLowerCase() === p.name.toLowerCase(); });
@@ -1193,7 +1205,7 @@ function downloadTemplate(){
           added++;
         }
       });
-      window._pendingUpload = null;
+      pendingUploadItems = null;
       saveData();
       render();
       setTimeout(function(){ showUploadMsg('success', 'Done! ' + added + ' new items added, ' + updated + ' existing items updated.'); }, 100);
