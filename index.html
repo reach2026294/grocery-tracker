@@ -119,6 +119,15 @@ td{padding:12px 14px;border-bottom:1px solid #f1f5f9;}
 .admin-user-email{font-size:14px;font-weight:500;}
 .admin-user-role{font-size:12px;color:#6366f1;font-weight:600;}
 .admin-badge{background:#6366f118;color:#6366f1;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.upload-area{border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;margin-bottom:16px;background:#f8fafc;transition:all 0.2s;}
+.upload-area:hover{border-color:#6366f1;background:#f0f0ff;}
+.upload-area .icon{font-size:36px;margin-bottom:8px;}
+.upload-area p{color:#64748b;font-size:13px;margin-bottom:12px;}
+.upload-area .hint{font-size:11px;color:#94a3b8;}
+.upload-preview{margin-top:16px;}
+.upload-preview table{font-size:13px;}
+.upload-preview th{font-size:11px;}
+.upload-actions{display:flex;gap:10px;justify-content:center;margin-top:16px;}
 
 @media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2,.grid-3{grid-template-columns:1fr;}}
 @media(max-width:600px){.grid-4{grid-template-columns:1fr;}.nav{flex-wrap:wrap;}.header{flex-direction:column;align-items:flex-start;}}
@@ -240,6 +249,7 @@ td{padding:12px 14px;border-bottom:1px solid #f1f5f9;}
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 // =================== FIREBASE CONFIG ===================
@@ -654,9 +664,12 @@ function renderInventory(){
         <h3 style="font-size:16px">Inventory (${items.length} items)</h3>
         <div class="flex-row">
           <input class="input" style="width:220px" placeholder="Search items..." id="invSearch" oninput="filterInventory()">
+          <label class="btn btn-green" style="cursor:pointer">&#128228; Upload Excel<input type="file" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)" style="display:none"></label>
           <button class="btn" onclick="openAddItem()">+ Add Item</button>
         </div>
       </div>
+      <div id="uploadMsg"></div>
+      <div id="uploadPreview"></div>
       <div style="overflow-x:auto">
       <table>
         <thead><tr><th>Item</th><th>Category</th><th>Unit</th><th>Cost/Unit</th><th>Stock</th><th>Reorder At</th><th>Supplier</th><th>Status</th><th>Actions</th></tr></thead>
@@ -1032,6 +1045,130 @@ function download(content,type,filename){
   const a=document.createElement("a");
   a.href=url;a.download=filename;a.click();
   URL.revokeObjectURL(url);
+}
+
+// =================== EXCEL UPLOAD ===================
+let pendingUploadItems = null;
+
+function guessCategory(name) {
+  const n = name.toLowerCase();
+  if (/tea|coffee|horlicks|malt|turmeric|badam|lassi|juice|coke|sprite|thums|maaza|shake|sparkling|coconut water|pulpy/.test(n)) return "Beverages";
+  if (/farsan|biscuit|cookie|chips|namkeen|chikki|chakli|peanut|chana|nut|aam papad|snack/.test(n)) return "Snacks";
+  if (/milk|curd|paneer|butter|cheese|cream|amul|dairy|yogurt|ghee/.test(n)) return "Dairy";
+  if (/sugar|stirrer|spoon|cup|plate|bowl|napkin|tissue|towel|straw|foil|cling|wrap/.test(n)) return "Kitchen Supplies";
+  if (/clean|mop|wash|soap|sanitiz|duster|brush|scrub|disinfect|detergent|floor|glass|toilet|urinal|aerosol|spray|bleach|wipe|glove|mask|apron|sani cube|taski|suma|brew clean|dispenser|diffuser|lemongrass/.test(n)) return "Cleaning Items";
+  if (/paper cup|disposable|garbage|trash|bag|packaging|plastic/.test(n)) return "Disposables";
+  if (/fruit|vegetable|apple|banana|orange|onion|potato|tomato/.test(n)) return "Fruits & Vegetables";
+  return "Other";
+}
+
+function mapUnit(unit) {
+  if (!unit) return "pcs";
+  const u = unit.toLowerCase().trim();
+  if (/^(pcs|pc|pic|piece|pieces)$/.test(u)) return "pcs";
+  if (/^(kg|kgs|kilogram)$/.test(u)) return "kg";
+  if (/^(g|gm|gms|gram|grams)$/.test(u)) return "g";
+  if (/^(l|ltr|litre|liter|liters|litres)$/.test(u)) return "liters";
+  if (/^(ml|milliliter)$/.test(u)) return "ml";
+  if (/^(pkt|pkts|packet|packets|pack|packs)$/.test(u)) return "packets";
+  if (/^(bottle|bottles|can)$/.test(u)) return "bottles";
+  if (/^(box|boxes)$/.test(u)) return "boxes";
+  if (/^(dz|dozen)$/.test(u)) return "dozen";
+  if (/^(roll|rolls)$/.test(u)) return "rolls";
+  if (/^(sachet|sachets)$/.test(u)) return "packets";
+  if (/^(pair|pairs)$/.test(u)) return "pcs";
+  return "pcs";
+}
+
+function handleExcelUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      let bestSheet = null;
+      let bestHeaders = null;
+      for (const name of workbook.SheetNames) {
+        const sheet = workbook.Sheets[name];
+        const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+        for (let r = 0; r < Math.min(json.length, 10); r++) {
+          const row = json[r];
+          if (!row) continue;
+          const cells = row.map(c => (c || '').toString().toLowerCase().trim());
+          const nameIdx = cells.findIndex(c => c.includes('item name') || c.includes('item') || c.includes('name'));
+          if (nameIdx >= 0) {
+            bestSheet = {sheetName: name, json: json, headerRow: r, row: row};
+            bestHeaders = {nameIdx};
+            bestHeaders.priceIdx = cells.findIndex(c => c.includes('price') || c.includes('cost') || c.includes('rate'));
+            bestHeaders.unitIdx = cells.findIndex(c => c.includes('unit'));
+            bestHeaders.stockIdx = cells.findIndex(c => c.includes('stock') || c.includes('qty') || c.includes('quantity') || c.includes('balance') || c.includes('opening'));
+            break;
+          }
+        }
+        if (bestSheet) break;
+      }
+      if (!bestSheet) { showUploadMsg('error', 'Could not find an "Item Name" column. Check the file format.'); return; }
+      const parsed = [];
+      const json = bestSheet.json;
+      const h = bestHeaders;
+      for (let r = bestSheet.headerRow + 1; r < json.length; r++) {
+        const row = json[r];
+        if (!row) continue;
+        const name = (row[h.nameIdx] || '').toString().trim();
+        if (!name) continue;
+        const price = h.priceIdx >= 0 ? (Number(row[h.priceIdx]) || 0) : 0;
+        const rawUnit = h.unitIdx >= 0 ? (row[h.unitIdx] || '').toString().trim() : '';
+        const stock = h.stockIdx >= 0 ? (Number(row[h.stockIdx]) || 0) : 0;
+        parsed.push({name, costPerUnit: price, unit: mapUnit(rawUnit), stock, category: guessCategory(name), reorderLevel: Math.max(1, Math.round(stock * 0.2)) || 2, supplier: ''});
+      }
+      if (parsed.length === 0) { showUploadMsg('error', 'No items found in the file.'); return; }
+      pendingUploadItems = parsed;
+      showUploadPreview(parsed, bestSheet.sheetName);
+    } catch(err) { console.error(err); showUploadMsg('error', 'Error reading file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function showUploadMsg(type, msg) {
+  const el = document.getElementById('uploadMsg');
+  if (el) el.innerHTML = '<div class="' + (type === 'error' ? 'error-msg' : 'success-msg') + '">' + msg + '</div>';
+}
+
+function showUploadPreview(parsed, sheetName) {
+  const el = document.getElementById('uploadPreview');
+  if (!el) return;
+  const catCounts = {};
+  parsed.forEach(p => { catCounts[p.category] = (catCounts[p.category] || 0) + 1; });
+  const catSummary = Object.entries(catCounts).map(function(e){return e[0]+': '+e[1]}).join(', ');
+  el.innerHTML = '<div class="card" style="border:2px solid #6366f1;margin-bottom:16px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
+    '<h4 style="font-size:15px">&#128203; Preview: ' + parsed.length + ' items from "' + sheetName + '"</h4>' +
+    '<div style="font-size:12px;color:#64748b">' + catSummary + '</div></div>' +
+    '<div style="max-height:300px;overflow-y:auto;margin-bottom:12px"><table>' +
+    '<thead><tr><th>Item Name</th><th>Category</th><th>Unit</th><th>Price</th><th>Stock</th></tr></thead><tbody>' +
+    parsed.map(function(p){return '<tr><td style="font-weight:600">'+p.name+'</td><td>'+badgeHTML(p.category,CATEGORIES.indexOf(p.category))+'</td><td>'+p.unit+'</td><td>'+(p.costPerUnit>0?fc(p.costPerUnit):'\u2014')+'</td><td>'+p.stock+'</td></tr>'}).join('') +
+    '</tbody></table></div>' +
+    '<div style="background:#fef3c7;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:12px">' +
+    '\u26A0\uFE0F This will <strong>replace all ' + items.length + ' existing items</strong> with these ' + parsed.length + ' items. Usage log entries will be kept.</div>' +
+    '<div class="upload-actions"><button class="btn" onclick="confirmUpload()">\u2713 Confirm & Import</button>' +
+    '<button class="btn-sm" onclick="cancelUpload()">Cancel</button></div></div>';
+}
+
+function confirmUpload() {
+  if (!pendingUploadItems || pendingUploadItems.length === 0) return;
+  items = pendingUploadItems.map(function(p){return {id:gid(),name:p.name,category:p.category,unit:p.unit,costPerUnit:p.costPerUnit,stock:p.stock,reorderLevel:p.reorderLevel,supplier:p.supplier}});
+  pendingUploadItems = null;
+  saveData(); render();
+  setTimeout(function(){showUploadMsg('success','Imported '+items.length+' items successfully!')}, 50);
+}
+
+function cancelUpload() {
+  pendingUploadItems = null;
+  const el = document.getElementById('uploadPreview');
+  if (el) el.innerHTML = '';
 }
 
 function attachEvents(){}
