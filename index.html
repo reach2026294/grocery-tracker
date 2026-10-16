@@ -1153,8 +1153,8 @@ function showUploadPreview(parsed, sheetName) {
     parsed.map(function(p){return '<tr><td style="font-weight:600">'+p.name+'</td><td>'+badgeHTML(p.category,CATEGORIES.indexOf(p.category))+'</td><td>'+p.unit+'</td><td>'+(p.costPerUnit>0?fc(p.costPerUnit):'\u2014')+'</td><td>'+p.stock+'</td></tr>'}).join('') +
     '</tbody></table></div>' +
     '<div style="background:#fef3c7;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:12px">' +
-    '\u26A0\uFE0F This will <strong>replace all ' + items.length + ' existing items</strong> with these ' + parsed.length + ' items. Usage log entries will be kept.</div>' +
-    '<div class="upload-actions"><button class="btn" onclick="confirmUpload()">\u2713 Confirm & Import</button>' +
+    '\u26A0\uFE0F This will <div style="background:#fef9c3;border:1px solid #eab308;border-radius:8px;padding:10px 14px;margin-top:12px;font-size:13px">\u26a0\ufe0f Items with matching names will be <strong>updated</strong>. New items will be <strong>added</strong>. Existing items not in the file will be kept. Usage log entries will be kept.</div>' +
+    '<div class="upload-actions"><button class="btn" onclick="confirmUpload()">\u2713 Merge & Import</button>' +
     '<button class="btn-sm" onclick="cancelUpload()">Cancel</button></div></div>';
 }
 
@@ -1175,15 +1175,33 @@ function downloadTemplate(){
       showUploadMsg('success','Template downloaded! Fill in your items and upload.');
     }
 
-    function confirmUpload() {
-  if (!pendingUploadItems || pendingUploadItems.length === 0) return;
-  items = pendingUploadItems.map(function(p){return {id:gid(),name:p.name,category:p.category,unit:p.unit,costPerUnit:p.costPerUnit,stock:p.stock,reorderLevel:p.reorderLevel,supplier:p.supplier}});
-  pendingUploadItems = null;
-  saveData(); render();
-  setTimeout(function(){showUploadMsg('success','Imported '+items.length+' items successfully!')}, 50);
-}
+    function confirmUpload(){
+      if(!window._pendingUpload) return;
+      const parsed = window._pendingUpload;
+      const items = JSON.parse(localStorage.getItem('groceryItems')||'[]');
+      let updated = 0, added = 0;
+      parsed.forEach(p => {
+        const existing = items.find(i => i.name.toLowerCase() === p.name.toLowerCase());
+        if(existing){
+          existing.category = p.category || existing.category;
+          existing.unit = p.unit || existing.unit;
+          existing.costPerUnit = p.costPerUnit || existing.costPerUnit;
+          existing.stock = p.stock;
+          existing.supplier = p.supplier || existing.supplier;
+          updated++;
+        } else {
+          items.push(p);
+          added++;
+        }
+      });
+      localStorage.setItem('groceryItems', JSON.stringify(items));
+      window._pendingUpload = null;
+      document.getElementById('uploadPreview').innerHTML = '';
+      showUploadMsg('success', 'Done! ' + added + ' new items added, ' + updated + ' existing items updated.');
+      renderInventory();
+    }
 
-function cancelUpload() {
+    function cancelUpload() {
   pendingUploadItems = null;
   const el = document.getElementById('uploadPreview');
   if (el) el.innerHTML = '';
