@@ -665,6 +665,7 @@ function renderInventory(){
         <div class="flex-row">
           <input class="input" style="width:220px" placeholder="Search items..." id="invSearch" oninput="filterInventory()">
           <label class="btn btn-green" style="cursor:pointer">&#128228; Upload Excel<input type="file" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)" style="display:none"></label>
+          <button class="btn" onclick="downloadTemplate()" style="background:#f0f0ff;color:#6366f1;border:1px solid #6366f1">&#128196; Download Template</button>
           <button class="btn" onclick="openAddItem()">+ Add Item</button>
         </div>
       </div>
@@ -1157,7 +1158,24 @@ function showUploadPreview(parsed, sheetName) {
     '<button class="btn-sm" onclick="cancelUpload()">Cancel</button></div></div>';
 }
 
-function confirmUpload() {
+function downloadTemplate(){
+      const wb = XLSX.utils.book_new();
+      const header = [['Sl No','Item Name','Price','Unit','Opening Balance','Inward','Total Stock','Consumed','Closing Balance','Remark']];
+      const sample = [
+        [1,'Tea Bags',150,'boxes','','','','','3','BigBasket'],
+        [2,'Coffee Powder',260,'packets','','','','','5','BigBasket'],
+        [3,'Sugar',40,'kg','','','','','8','BigBasket'],
+        [4,'Paper Cups',80,'packets','','','','','15','Amazon'],
+        [5,'Hand Wash',120,'bottles','','','','','6','Amazon']
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(header.concat(sample));
+      ws['!cols'] = [{wch:6},{wch:20},{wch:8},{wch:10},{wch:16},{wch:8},{wch:12},{wch:10},{wch:15},{wch:15}];
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+      XLSX.writeFile(wb, 'Grocery_Upload_Template.xlsx');
+      showUploadMsg('success','Template downloaded! Fill in your items and upload.');
+    }
+
+    function confirmUpload() {
   if (!pendingUploadItems || pendingUploadItems.length === 0) return;
   items = pendingUploadItems.map(function(p){return {id:gid(),name:p.name,category:p.category,unit:p.unit,costPerUnit:p.costPerUnit,stock:p.stock,reorderLevel:p.reorderLevel,supplier:p.supplier}});
   pendingUploadItems = null;
