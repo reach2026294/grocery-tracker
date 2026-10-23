@@ -249,17 +249,21 @@ td{padding:12px 14px;border-bottom:1px solid #f1f5f9;}
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 // =================== FIREBASE CONFIG ===================
 let firebaseApp = null;
 let auth = null;
+let db = null;
 let currentUser = null;
+let dbListenersAttached = false;
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBonSaA3vaynpLHUojOM4-kfqD1D0zkk3g",
   authDomain: "office-grocery-tracker.firebaseapp.com",
+  databaseURL: "https://office-grocery-tracker-default-rtdb.firebaseio.com",
   projectId: "office-grocery-tracker",
   storageBucket: "office-grocery-tracker.firebasestorage.app",
   messagingSenderId: "402023883030",
@@ -274,6 +278,7 @@ function initFirebase(config) {
       firebaseApp = firebase.apps[0];
     }
     auth = firebase.auth();
+    db = firebase.database();
 
     // Show loading, hide setup
     showScreen("loading");
@@ -431,21 +436,24 @@ function onUserLoggedIn() {
   const name = currentUser.displayName || currentUser.email.split("@")[0];
   document.getElementById("userBadge").textContent = name;
 
-  // Check if first user (admin)
-  const adminEmail = localStorage.getItem("gt_admin_email");
-  if (!adminEmail) {
-    // First user becomes admin
-    localStorage.setItem("gt_admin_email", currentUser.email);
-  }
+  // Check if first user (admin) — use Firebase DB
+  db.ref("grocery/admin_email").once("value").then(function(snap){
+    const adminEmail = snap.val();
+    if (!adminEmail) {
+      // First user becomes admin
+      db.ref("grocery/admin_email").set(currentUser.email);
+    }
+    return db.ref("grocery/admin_email").once("value");
+  }).then(function(snap){
+    const isAdmin = currentUser.email === snap.val();
+    document.getElementById("adminTab").classList.toggle("hidden", !isAdmin);
 
-  // Show/hide admin tab
-  const isAdmin = currentUser.email === localStorage.getItem("gt_admin_email");
-  document.getElementById("adminTab").classList.toggle("hidden", !isAdmin);
-
-  // Load data and show app
-  loadData();
-  showScreen("app");
-  render();
+    // Load data and show app
+    loadData(function(){
+      showScreen("app");
+      render();
+    });
+  });
 }
 
 // =================== DATA ===================
@@ -471,20 +479,50 @@ let selectedMonth = new Date().toISOString().slice(0,7);
 function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 function fc(n){return "\u20B9"+Number(n).toLocaleString("en-IN");}
 
-// Save / Load from localStorage
+// Save / Load from Firebase Realtime Database
 function saveData(){
+  if(!db) return;
   try{
-    localStorage.setItem("gt_items",JSON.stringify(items));
-    localStorage.setItem("gt_entries",JSON.stringify(entries));
-  }catch(e){}
+    db.ref("grocery/items").set(items);
+    db.ref("grocery/entries").set(entries);
+  }catch(e){ console.error("saveData error:",e); }
 }
-function loadData(){
-  try{
-    const i=localStorage.getItem("gt_items");
-    const e=localStorage.getItem("gt_entries");
-    if(i) items=JSON.parse(i);
-    if(e) entries=JSON.parse(e);
-  }catch(e){}
+
+function loadData(callback){
+  if(!db){ if(callback) callback(); return; }
+  // Load once initially
+  db.ref("grocery/items").once("value").then(function(snap){
+    const val = snap.val();
+    if(val) items = Array.isArray(val) ? val : Object.values(val);
+  }).then(function(){
+    return db.ref("grocery/entries").once("value");
+  }).then(function(snap){
+    const val = snap.val();
+    if(val) entries = Array.isArray(val) ? val : Object.values(val);
+  }).then(function(){
+    if(callback) callback();
+    // Attach real-time listeners after first load
+    if(!dbListenersAttached){
+      dbListenersAttached = true;
+      db.ref("grocery/items").on("value", function(snap){
+        const val = snap.val();
+        items = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+        render();
+      });
+      db.ref("grocery/entries").on("value", function(snap){
+        const val = snap.val();
+        entries = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+        render();
+      });
+      db.ref("grocery/admin_email").on("value", function(snap){
+        // Re-render when admin changes
+        render();
+      });
+      db.ref("grocery/allowed_emails").on("value", function(snap){
+        render();
+      });
+    }
+  }).catch(function(e){ console.error("loadData error:",e); if(callback) callback(); });
 }
 
 // =================== INIT ===================
@@ -529,13 +567,26 @@ function statusBadge(item){
 
 // =================== RENDER ===================
 function render(){
-  const c = document.getElementById("content");
-  if(activeTab==="dashboard") c.innerHTML = renderDashboard();
-  else if(activeTab==="usage") c.innerHTML = renderUsage();
-  else if(activeTab==="inventory") c.innerHTML = renderInventory();
-  else if(activeTab==="export") c.innerHTML = renderExport();
-  else if(activeTab==="admin") c.innerHTML = renderAdmin();
-  attachEvents();
+  if(!db || !currentUser) return;
+  // Sync admin email and allowed emails from Firebase before rendering
+  db.ref("grocery/admin_email").once("value").then(function(snap){
+    window._gtAdminEmail = snap.val() || "";
+    return db.ref("grocery/allowed_emails").once("value");
+  }).then(function(snap){
+    window._gtAllowedEmails = snap.val() || [];
+    // Update admin tab visibility
+    const isAdmin = currentUser.email === window._gtAdminEmail;
+    const adminTab = document.getElementById("adminTab");
+    if(adminTab) adminTab.classList.toggle("hidden", !isAdmin);
+    // Render content
+    const c = document.getElementById("content");
+    if(activeTab==="dashboard") c.innerHTML = renderDashboard();
+    else if(activeTab==="usage") c.innerHTML = renderUsage();
+    else if(activeTab==="inventory") c.innerHTML = renderInventory();
+    else if(activeTab==="export") c.innerHTML = renderExport();
+    else if(activeTab==="admin") c.innerHTML = renderAdmin();
+    attachEvents();
+  });
 }
 
 function renderDashboard(){
@@ -750,7 +801,7 @@ function renderExport(){
 }
 
 function renderAdmin(){
-  const isAdmin = currentUser && currentUser.email === localStorage.getItem("gt_admin_email");
+  const isAdmin = currentUser && currentUser.email === window._gtAdminEmail;
   if (!isAdmin) return `<div class="card"><p class="empty">Access denied. Only admin can view this page.</p></div>`;
 
   const allowedEmails = getAllowedEmails();
@@ -809,14 +860,12 @@ function renderAdmin(){
 
 // =================== ADMIN FUNCTIONS ===================
 function getAllowedEmails() {
-  try {
-    const e = localStorage.getItem("gt_allowed_emails");
-    return e ? JSON.parse(e) : [];
-  } catch(e) { return []; }
+  return window._gtAllowedEmails || [];
 }
 
 function saveAllowedEmails(emails) {
-  localStorage.setItem("gt_allowed_emails", JSON.stringify(emails));
+  window._gtAllowedEmails = emails;
+  if(db) db.ref("grocery/allowed_emails").set(emails);
 }
 
 function addAllowedEmail() {
@@ -860,7 +909,8 @@ function changeAdmin() {
 
   if (!confirm("Are you sure you want to transfer admin rights to " + newEmail + "? You will lose admin access.")) return;
 
-  localStorage.setItem("gt_admin_email", newEmail);
+  db.ref("grocery/admin_email").set(newEmail);
+  window._gtAdminEmail = newEmail;
   // Make sure the new admin is in allowed list
   const emails = getAllowedEmails();
   if (!emails.includes(newEmail)) {
@@ -996,22 +1046,22 @@ function closeModal(){document.getElementById("modalOverlay").style.display="non
 
 // =================== SEARCH ===================
 function filterUsage(){
-      const q=document.getElementById("usageSearch").value.toLowerCase();
-      const dateEl=document.getElementById("usageDateFilter");
-      const dateFilter=dateEl?dateEl.value:"";
-      document.querySelectorAll("#usageBody tr").forEach(r=>{
-        const s=r.getAttribute("data-search")||"";
-        const d=r.getAttribute("data-date")||"";
-        const matchText=!q||s.includes(q);
-        const matchDate=!dateFilter||d===dateFilter;
-        r.style.display=(matchText&&matchDate)?"":"none";
-      });
-    }
-    function clearUsageFilters(){
-      const s=document.getElementById("usageSearch");if(s)s.value="";
-      const d=document.getElementById("usageDateFilter");if(d)d.value="";
-      filterUsage();
-    }
+  const q=document.getElementById("usageSearch").value.toLowerCase();
+  const dateEl=document.getElementById("usageDateFilter");
+  const dateFilter=dateEl?dateEl.value:"";
+  document.querySelectorAll("#usageBody tr").forEach(r=>{
+    const s=r.getAttribute("data-search")||"";
+    const d=r.getAttribute("data-date")||"";
+    const matchText=!q||s.includes(q);
+    const matchDate=!dateFilter||d===dateFilter;
+    r.style.display=(matchText&&matchDate)?"":"none";
+  });
+}
+function clearUsageFilters(){
+  const s=document.getElementById("usageSearch");if(s)s.value="";
+  const d=document.getElementById("usageDateFilter");if(d)d.value="";
+  filterUsage();
+}
 function filterInventory(){
   const q=document.getElementById("invSearch").value.toLowerCase();
   document.querySelectorAll("#invBody tr").forEach(r=>{
@@ -1193,10 +1243,10 @@ function downloadTemplate(){
 
     function confirmUpload(){
       if(!pendingUploadItems) return;
-      const parsed = pendingUploadItems;
-      let updated = 0, added = 0;
+      var parsed = pendingUploadItems;
+      var updated = 0, added = 0;
       parsed.forEach(function(p){
-        const existing = items.find(function(i){ return i.name.toLowerCase() === p.name.toLowerCase(); });
+        var existing = items.find(function(i){ return i.name.toLowerCase() === p.name.toLowerCase(); });
         if(existing){
           existing.category = p.category || existing.category;
           existing.unit = p.unit || existing.unit;
@@ -1283,12 +1333,16 @@ function handleUsageExcelUpload(e) {
         const notes = h.notesIdx >= 0 ? (row[h.notesIdx] || '').toString().trim() : '';
         const matchedItem = items.find(i => i.name.toLowerCase() === itemName.toLowerCase());
         parsed.push({
-          date: dateStr, itemName: matchedItem ? matchedItem.name : itemName,
+          date: dateStr,
+          itemName: matchedItem ? matchedItem.name : itemName,
           itemId: matchedItem ? matchedItem.id : null,
           category: matchedItem ? matchedItem.category : guessCategory(itemName),
           unit: matchedItem ? matchedItem.unit : 'pcs',
           costPerUnit: matchedItem ? matchedItem.costPerUnit : 0,
-          quantity: qty, requestedBy, notes, matched: !!matchedItem
+          quantity: qty,
+          requestedBy,
+          notes,
+          matched: !!matchedItem
         });
       }
       if (parsed.length === 0) { showUsageUploadMsg('error', 'No valid entries found in the file.'); return; }
@@ -1318,11 +1372,12 @@ function showUsageUploadPreview(parsed, sheetName) {
     parsed.map(function(p){
       var cost = p.quantity * p.costPerUnit;
       var statusBadge = p.matched ? '<span style="color:#10b981;font-weight:600">&#10003; Matched</span>' : '<span style="color:#f59e0b;font-weight:600">&#9888; New item will be created</span>';
-      return '<tr><td>' + p.date + '</td><td style="font-weight:600">' + p.itemName + '</td><td>' + p.quantity + ' ' + p.unit + '</td><td>' + (cost > 0 ? fc(cost) : 'â') + '</td><td>' + (p.requestedBy || 'â') + '</td><td>' + statusBadge + '</td></tr>';
+      return '<tr><td>' + p.date + '</td><td style="font-weight:600">' + p.itemName + '</td><td>' + p.quantity + ' ' + p.unit + '</td><td>' + (cost > 0 ? fc(cost) : '—') + '</td><td>' + (p.requestedBy || '—') + '</td><td>' + statusBadge + '</td></tr>';
     }).join('') +
     '</tbody></table></div>' +
-    (unmatched > 0 ? '<div style="background:#fef9c3;border:1px solid #eab308;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px">â ï¸ ' + unmatched + ' item(s) not found in inventory. They will be auto-created with default settings.</div>' : '') +
-    '<div class="upload-actions"><button class="btn" onclick="confirmUsageUpload()">â Import Usage</button>' +
+    (unmatched > 0 ? '<div style="background:#fef9c3;border:1px solid #eab308;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px">' +
+    '⚠️ ' + unmatched + ' item(s) not found in inventory. They will be auto-created with default settings.</div>' : '') +
+    '<div class="upload-actions"><button class="btn" onclick="confirmUsageUpload()">✓ Import Usage</button>' +
     '<button class="btn-sm" onclick="cancelUsageUpload()">Cancel</button></div></div>';
 }
 
@@ -1339,8 +1394,22 @@ function confirmUsageUpload() {
       created++;
     }
     var item = items.find(function(i){ return i.id === itemId; });
-    entries.push({id: gid(), itemId: itemId, quantity: p.quantity, date: p.date, requestedBy: p.requestedBy, notes: p.notes, totalCost: p.quantity * (item ? item.costPerUnit : 0), itemName: item ? item.name : p.itemName, category: item ? item.category : p.category, unit: item ? item.unit : p.unit, loggedBy: currentUser ? currentUser.email : ''});
-    if (item) { item.stock = Math.max(0, (item.stock || 0) - p.quantity); }
+    entries.push({
+      id: gid(),
+      itemId: itemId,
+      quantity: p.quantity,
+      date: p.date,
+      requestedBy: p.requestedBy,
+      notes: p.notes,
+      totalCost: p.quantity * (item ? item.costPerUnit : 0),
+      itemName: item ? item.name : p.itemName,
+      category: item ? item.category : p.category,
+      unit: item ? item.unit : p.unit,
+      loggedBy: currentUser ? currentUser.email : ''
+    });
+    if (item) {
+      item.stock = Math.max(0, (item.stock || 0) - p.quantity);
+    }
     added++;
   });
   pendingUsageEntries = null;
@@ -1372,7 +1441,6 @@ function downloadUsageTemplate() {
   XLSX.writeFile(wb, 'Usage_Upload_Template.xlsx');
   showUsageUploadMsg('success', 'Template downloaded! Fill in your usage entries and upload.');
 }
-
 
 function attachEvents(){}
 
