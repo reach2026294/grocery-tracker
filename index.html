@@ -632,9 +632,13 @@ function renderUsage(){
           <input type="date" class="input" style="width:150px" id="usageDateFilter" onchange="filterUsage()" value="">
           <input class="input" style="width:220px" placeholder="Search items or people..." id="usageSearch" oninput="filterUsage()">
           <button class="btn-sm" onclick="clearUsageFilters()" style="color:#64748b" title="Clear filters">&#10005;</button>
+          <label class="btn btn-green" style="cursor:pointer">&#128228; Upload Excel<input type="file" accept=".xlsx,.xls,.csv" onchange="handleUsageExcelUpload(event)" style="display:none"></label>
+          <button class="btn" onclick="downloadUsageTemplate()" style="background:#f0f0ff;color:#6366f1;border:1px solid #6366f1">&#128196; Template</button>
           <button class="btn" onclick="openAddEntry()">+ Log Usage</button>
         </div>
       </div>
+      <div id="usageUploadMsg"></div>
+      <div id="usageUploadPreview"></div>
       <div style="overflow-x:auto">
       <table>
         <thead><tr><th>Date</th><th>Item</th><th>Category</th><th>Qty</th><th>Total Cost</th><th>Requested By</th><th>Notes</th><th></th></tr></thead>
@@ -1216,6 +1220,159 @@ function downloadTemplate(){
   const el = document.getElementById('uploadPreview');
   if (el) el.innerHTML = '';
 }
+
+// =================== USAGE EXCEL UPLOAD ===================
+let pendingUsageEntries = null;
+
+function handleUsageExcelUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      let bestSheet = null, bestHeaders = null;
+      for (const name of workbook.SheetNames) {
+        const sheet = workbook.Sheets[name];
+        const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+        for (let r = 0; r < Math.min(json.length, 10); r++) {
+          const row = json[r];
+          if (!row) continue;
+          const cells = row.map(c => (c || '').toString().toLowerCase().trim());
+          const dateIdx = cells.findIndex(c => c.includes('date'));
+          const itemIdx = cells.findIndex(c => c.includes('item'));
+          if (dateIdx >= 0 && itemIdx >= 0) {
+            bestSheet = {sheetName: name, json, headerRow: r};
+            bestHeaders = {dateIdx, itemIdx};
+            bestHeaders.qtyIdx = cells.findIndex(c => c.includes('qty') || c.includes('quantity'));
+            bestHeaders.byIdx = cells.findIndex(c => c.includes('requested') || c.includes('person') || c.includes('by'));
+            bestHeaders.notesIdx = cells.findIndex(c => c.includes('note') || c.includes('remark'));
+            break;
+          }
+        }
+        if (bestSheet) break;
+      }
+      if (!bestSheet) { showUsageUploadMsg('error', 'Could not find "Date" and "Item" columns. Check the file format.'); return; }
+      const parsed = [];
+      const json = bestSheet.json;
+      const h = bestHeaders;
+      for (let r = bestSheet.headerRow + 1; r < json.length; r++) {
+        const row = json[r];
+        if (!row) continue;
+        const itemName = (row[h.itemIdx] || '').toString().trim();
+        if (!itemName) continue;
+        let rawDate = row[h.dateIdx];
+        let dateStr = '';
+        if (rawDate instanceof Date) {
+          dateStr = rawDate.toISOString().slice(0, 10);
+        } else if (typeof rawDate === 'number') {
+          const d = XLSX.SSF.parse_date_code(rawDate);
+          dateStr = d.y + '-' + String(d.m).padStart(2,'0') + '-' + String(d.d).padStart(2,'0');
+        } else {
+          dateStr = (rawDate || '').toString().trim();
+          if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(dateStr)) {
+            const parts = dateStr.split(/[\/\-]/);
+            if (parts[2].length === 2) parts[2] = '20' + parts[2];
+            dateStr = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+          }
+        }
+        if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+        const qty = h.qtyIdx >= 0 ? (Number(row[h.qtyIdx]) || 0) : 1;
+        const requestedBy = h.byIdx >= 0 ? (row[h.byIdx] || '').toString().trim() : '';
+        const notes = h.notesIdx >= 0 ? (row[h.notesIdx] || '').toString().trim() : '';
+        const matchedItem = items.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+        parsed.push({
+          date: dateStr, itemName: matchedItem ? matchedItem.name : itemName,
+          itemId: matchedItem ? matchedItem.id : null,
+          category: matchedItem ? matchedItem.category : guessCategory(itemName),
+          unit: matchedItem ? matchedItem.unit : 'pcs',
+          costPerUnit: matchedItem ? matchedItem.costPerUnit : 0,
+          quantity: qty, requestedBy, notes, matched: !!matchedItem
+        });
+      }
+      if (parsed.length === 0) { showUsageUploadMsg('error', 'No valid entries found in the file.'); return; }
+      pendingUsageEntries = parsed;
+      showUsageUploadPreview(parsed, bestSheet.sheetName);
+    } catch(err) { console.error(err); showUsageUploadMsg('error', 'Error reading file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function showUsageUploadMsg(type, msg) {
+  const el = document.getElementById('usageUploadMsg');
+  if (el) el.innerHTML = '<div class="' + (type === 'error' ? 'error-msg' : 'success-msg') + '">' + msg + '</div>';
+}
+
+function showUsageUploadPreview(parsed, sheetName) {
+  const el = document.getElementById('usageUploadPreview');
+  if (!el) return;
+  const unmatched = parsed.filter(p => !p.matched).length;
+  el.innerHTML = '<div class="card" style="border:2px solid #6366f1;margin-bottom:16px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
+    '<h4 style="font-size:15px">&#128203; Preview: ' + parsed.length + ' usage entries from "' + sheetName + '"</h4>' +
+    '<div style="font-size:12px;color:#64748b">' + (unmatched > 0 ? unmatched + ' unmatched items' : 'All items matched') + '</div></div>' +
+    '<div style="max-height:300px;overflow-y:auto;margin-bottom:12px"><table>' +
+    '<thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Cost</th><th>Requested By</th><th>Status</th></tr></thead><tbody>' +
+    parsed.map(function(p){
+      var cost = p.quantity * p.costPerUnit;
+      var statusBadge = p.matched ? '<span style="color:#10b981;font-weight:600">&#10003; Matched</span>' : '<span style="color:#f59e0b;font-weight:600">&#9888; New item will be created</span>';
+      return '<tr><td>' + p.date + '</td><td style="font-weight:600">' + p.itemName + '</td><td>' + p.quantity + ' ' + p.unit + '</td><td>' + (cost > 0 ? fc(cost) : 'â') + '</td><td>' + (p.requestedBy || 'â') + '</td><td>' + statusBadge + '</td></tr>';
+    }).join('') +
+    '</tbody></table></div>' +
+    (unmatched > 0 ? '<div style="background:#fef9c3;border:1px solid #eab308;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px">â ï¸ ' + unmatched + ' item(s) not found in inventory. They will be auto-created with default settings.</div>' : '') +
+    '<div class="upload-actions"><button class="btn" onclick="confirmUsageUpload()">â Import Usage</button>' +
+    '<button class="btn-sm" onclick="cancelUsageUpload()">Cancel</button></div></div>';
+}
+
+function confirmUsageUpload() {
+  if (!pendingUsageEntries) return;
+  var parsed = pendingUsageEntries;
+  var added = 0, created = 0;
+  parsed.forEach(function(p) {
+    var itemId = p.itemId;
+    if (!itemId) {
+      var newItem = {id: gid(), name: p.itemName, category: p.category, unit: p.unit, costPerUnit: p.costPerUnit, stock: 0, reorderLevel: 2, supplier: ''};
+      items.push(newItem);
+      itemId = newItem.id;
+      created++;
+    }
+    var item = items.find(function(i){ return i.id === itemId; });
+    entries.push({id: gid(), itemId: itemId, quantity: p.quantity, date: p.date, requestedBy: p.requestedBy, notes: p.notes, totalCost: p.quantity * (item ? item.costPerUnit : 0), itemName: item ? item.name : p.itemName, category: item ? item.category : p.category, unit: item ? item.unit : p.unit, loggedBy: currentUser ? currentUser.email : ''});
+    if (item) { item.stock = Math.max(0, (item.stock || 0) - p.quantity); }
+    added++;
+  });
+  pendingUsageEntries = null;
+  saveData();
+  render();
+  setTimeout(function(){ showUsageUploadMsg('success', 'Done! ' + added + ' usage entries imported.' + (created > 0 ? ' ' + created + ' new items created in inventory.' : '')); }, 100);
+}
+
+function cancelUsageUpload() {
+  pendingUsageEntries = null;
+  var el = document.getElementById('usageUploadPreview');
+  if (el) el.innerHTML = '';
+}
+
+function downloadUsageTemplate() {
+  var wb = XLSX.utils.book_new();
+  var header = [['Date', 'Item Name', 'Quantity', 'Requested By', 'Notes']];
+  var today = new Date().toISOString().slice(0, 10);
+  var sample = [
+    [today, 'Tea Bags', 2, 'Abhishek', 'Morning tea'],
+    [today, 'Coffee Powder', 1, 'Priya', ''],
+    [today, 'Paper Cups', 3, 'Rahul', 'For meeting'],
+    [today, 'Sugar', 1, 'Abhishek', ''],
+    [today, 'Hand Wash', 1, 'Priya', 'Washroom refill']
+  ];
+  var ws = XLSX.utils.aoa_to_sheet(header.concat(sample));
+  ws['!cols'] = [{wch: 12}, {wch: 20}, {wch: 10}, {wch: 16}, {wch: 20}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Usage');
+  XLSX.writeFile(wb, 'Usage_Upload_Template.xlsx');
+  showUsageUploadMsg('success', 'Template downloaded! Fill in your usage entries and upload.');
+}
+
 
 function attachEvents(){}
 
